@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config>
+    <bamed>
+        <!-- Current BAMED version (DO NOT CHANGE)-->
+        <version>2.0</version>
+
+        <launch name="launch-1">
+            <launch_datetime>
+                <!-- launch date (YYYYMMDD) -->
+                <date>20230816</date>
+                <!-- launch time(s) HHMM, separated by a slash in case of multiple times -->
+                <time>0600</time>
+            </launch_datetime>
+            <launch_site>
+                <!-- launch site latitude, longitude in "lat/lon" format for each desired site -->
+                <!-- names matter only for the output/input folders distinction, they should be different -->
+                <site name='Fidji'> -17.8 / 185.6 </site>
+            </launch_site>
+            <baloons>
+                <!-- baloon densities -->
+                <density>0.90</density>
+            </baloons>
+        </launch>
+
+        <simulation>
+            <!-- Latitude/longitude simulation extent -->
+            <lat_min>-20</lat_min>
+            <lat_max>-10</lat_max>
+            <lon_min>170</lon_min>
+            <lon_max>190</lon_max>
+            <!-- Simulation duration (in days) -->
+            <duration>2</duration>
+            <!-- simulation timestep in seconds (maximum 360 secs) -->
+            <time_step>360</time_step>
+            <!-- timestep of the grib data in hours -->
+            <grib_time_step>3</grib_time_step>
+        </simulation>
+
+        <paths>
+            <!-- path to the directory where grib files are stored -->
+            <grib_path>/home/damali/Work/SEDOO/bamed_wdir/test_pacifique</grib_path>
+            <!-- path to the directory where working files for the simulation will be stored -->
+            <working_path>/home/damali/Work/SEDOO/bamed_wdir/test_pacifique</working_path>
+        </paths>
+    </bamed>
+</config>
