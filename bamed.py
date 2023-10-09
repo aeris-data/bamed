@@ -433,27 +433,6 @@ class bamed_simulation:
                 var.long_name = 'Time stamp of the baloon position'
                 var.calendar = "standard"
                 var[:] = [0] + time_secs
-                # ------------------------------------------
-                # var = ncfile.createVariable("baloon_position", np.float32, ("lat","lon"))
-                # var.standard_name = "ballon_position"
-                # var.long_name = "Baloon lat/lon position"
-                # var[:] = np.eye(len(lon)+1)
-                # file.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
-                # file.write("<kml xmlns=\"http://www.opengis.net/kml/2.2\">\n")
-                # file.write("<Document>\n")
-                # for ii in range(len(lon)):
-                #     position_datetime_str = datetime.datetime.strftime(start_datetime + datetime.timedelta(seconds=time_secs[ii]), "%d-%m-%YT%H:%M:%S") 
-                #     file.write("\t<Placemark>\n")
-                #     file.write(f"\t\t<name>{position_datetime_str}</name>\n")
-                #     file.write("\t\t<Point>\n")
-                #     file.write("\t\t\t<extrude>1</extrude>\n")
-                #     file.write("\t\t\t<altitudeMode>absolute</altitudeMode>\n")
-                #     file.write(f"\t\t\t<coordinates>{lon[ii]},{lat[ii]},{alt[ii]}</coordinates>\n")
-                #     # file.write(f"\t\t\t<coordinates>{lon[ii]},{lat[ii]}</coordinates>\n")
-                #     file.write("\t\t</Point>\n")
-                #     file.write("\t</Placemark>\n")
-                # file.write("</Document>\n")
-                # file.write("</kml>\n")
 
 # ###############################################################################
 # #           Configuration object for the .dat configuration file              #
@@ -599,7 +578,7 @@ def start_log(log_filepath: str, shell_option: bool=False) -> logging.Logger:
     log_handlers.append(logging.FileHandler(log_filepath))
     write_header_in_file(log_filepath)
     logging.basicConfig(format="%(asctime)s   [%(levelname)s]   %(message)s",
-                        datefmt="%m/%d/%Y %H:%M:%S",
+                        datefmt="%d/%m/%Y %H:%M:%S",
                         handlers=log_handlers)
     logger = logging.getLogger('my_log')
     logger.setLevel(logging.DEBUG)
