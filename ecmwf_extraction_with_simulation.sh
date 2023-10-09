@@ -380,52 +380,41 @@ EOF
 
 # ====================================================================================================
 
-function extract_an_data(){
+function write_script(){
+    DATA_TYPE=$1
     BATCH_SCRIPT_FILEPATH="${LAUNCH_WORKING_DIR}/sbatch_script_${ID_NAME}_${START_DATE}_${N_DAYS}days.sh"
-    SIMU_CONFIG_FILEPATH=$(write_simulaiton_config_file 3)
+
+    if [[ ${DATA_TYPE} == "an" ]]; then
+        SIMU_CONFIG_FILEPATH=$(write_simulaiton_config_file 3)
+        FC_HOURS=""
+        TODAY_DATE=""
+        END_AN_DATE=""
+        AN_N_DAYS=""
+        FC_N_DAYS=""
+    fi
+    if [[ ${DATA_TYPE} == "fc" ]]; then
+        FC_HOURS=$(count_fc_hours ${N_DAYS})
+        IFS="/" read -ra NUMBERS <<< "${FC_HOURS}"
+        FC_DELTA=$(( NUMBERS[1] - NUMBERS[0] ))
+        SIMU_CONFIG_FILEPATH=$(write_simulaiton_config_file  ${FC_DELTA})
+        TODAY_DATE=""
+        END_AN_DATE=""
+        AN_N_DAYS=""
+        FC_N_DAYS=""
+    fi
+    if [[ ${DATA_TYPE} == "an+fc" ]]; then
+        TODAY_DATE=$(date +'%Y%m%d')
+        END_AN_DATE=$(date -d "${TODAY_DATE} - 1 day" "+%Y%m%d")
+        AN_N_DAYS=$(( ($(date -d ${TODAY_DATE} +%s) - $(date -d ${START_DATE} +%s)) / 86400 ))
+        FC_N_DAYS=$(( ($(date -d ${END_DATE} +%s) - $(date -d ${TODAY_DATE} +%s) + 86400) / 86400 ))
+        FC_HOURS=$((${FC_N_DAYS}*24))
+        SIMU_CONFIG_FILEPATH=$(write_simulaiton_config_file 3)
+    fi
+
     REMOTE_JOB_FILEPATH=$(write_simu_job_script ${SIMU_CONFIG_FILEPATH})
 
-    cat > ${BATCH_SCRIPT_FILEPATH} <<EOF 
-#!/bin/bash
-
-# The job name
-#SBATCH --job-name=${ID_NAME}_${START_DATE}_${N_DAYS}days
-#SBATCH --output=${ID_NAME}_${START_DATE}_${N_DAYS}days.out
-#SBATCH --error=${ID_NAME}_${START_DATE}_${N_DAYS}days.out
-#SBATCH --chdir=${LAUNCH_WORKING_DIR}
-#SBATCH --time=1-0
-#SBATCH --mail-type=ALL
-#SBATCH --mail-user=${USER_EMAIL}
-
-# This is the job
-
-export MARS_MULTITARGET_STRICT_FORMAT=1
-
-ID_NAME="${ID_NAME}"
-GRID_RES="${GRID_RESOLUTION}"
-AREA="${LAT_MAX}/${LON_MIN}/${LAT_MIN}/${LON_MAX}"
-
-DATA_DIR="${DATA_DIR}/${ID_NAME}/${START_DATE}_${END_DATE}"
-WORK_DIR="${LAUNCH_WORKING_DIR}"
-
-FINAL_SERVER_USER="${SERVER_USER}"
-FINAL_SERVER_ADDRESS="${SERVER_ADDRESS}"
-FINAL_SERVER_DATA_DIR="${SERVER_DATA_DIR}"
-FINAL_SERVER_WORKING_DIR="${SERVER_WORKING_DIR}"
-SIMULATION_CONFIG_FILEPATH="${SIMU_CONFIG_FILEPATH}"
-REMOTE_SIMULATION_JOB_SCRIPT="${REMOTE_JOB_FILEPATH}"
-
-if [ ! -d \${DATA_DIR} ]; then
-    mkdir -p \${DATA_DIR}
-fi
-
-START_DATE="${START_DATE}"
-END_DATE="${END_DATE}"
-
-module load ecmwf-toolbox
-
-REQUEST_PATH="\${WORK_DIR}/\${START_DATE}_\${END_DATE}_an.req"
-cat > \${REQUEST_PATH} <<EOF1
+    if [[ ${DATA_TYPE} == "an" ]]; then
+    MARS_REQ='
 retrieve,
     class=OD,
     expver=1,
@@ -470,6 +459,151 @@ retrieve,
     levtype=SFC,
     param=228,
     target="\${DATA_DIR}/[date]_[time]_[step].grib"
+    '
+    fi
+    if [[ ${DATA_TYPE} == "fc" ]]; then
+    MARS_REQ='
+retrieve,
+    class=OD,
+    expver=1,
+    stream=OPER,
+    type=FC,
+    levtype=ML,
+    levelist=90/to/137/by/1,
+    packing=simple,
+    grid=\${GRID_RES}/\${GRID_RES},
+    area=\${AREA},
+    date=\${START_DATE},
+    time=00,
+    step=\${FC_HOURS},
+    param=130/131/132/133/135,
+    target="\${DATA_DIR}/[date]_[time]_[step].grib"
+retrieve,
+    levelist=1,
+    param=152,
+    target="\${DATA_DIR}/[date]_[time]_[step].grib"
+retrieve,
+    levtype=SFC,
+    param=228,
+    target="\${DATA_DIR}/[date]_[time]_[step].grib"
+    '
+    fi
+    if [[ ${DATA_TYPE} == "an+fc" ]]; then
+    MARS_REQ='
+retrieve,
+    class=OD,
+    expver=1,
+    stream=OPER,
+    type=AN,
+    levtype=ML,
+    levelist=90/to/137/by/1,
+    packing=simple,
+    grid=\${GRID_RES}/\${GRID_RES},
+    area=\${AREA},
+    date=\${START_DATE}/to/\${END_AN_DATE},
+    time=00/06/12/18,
+    param=130/131/132/133/135,
+    target="\${DATA_DIR}/[date]_[time]_[step].grib"
+retrieve,
+    levelist=1,
+    param=152,
+    target="\${DATA_DIR}/[date]_[time]_[step].grib"
+retrieve,
+    levtype=SFC,
+    param=228,
+    target="\${DATA_DIR}/[date]_[time]_[step].grib"
+retrieve,
+    class=OD,
+    stream=OPER,
+    expver=1,
+    levtype=ML,
+    levelist=90/to/137/by/1,
+    type=FC,
+    packing=simple,
+    param=130/131/132/133/135,
+    date=\${START_DATE}/to/\${END_AN_DATE},
+    time=00/12,
+    step=3/9,
+    grid=\${GRID_RES}/\${GRID_RES},
+    area=\${AREA},
+    target="\${DATA_DIR}/[date]_[time]_[step].grib"
+retrieve,
+    levelist=1,
+    param=152,
+    target="\${DATA_DIR}/[date]_[time]_[step].grib"
+retrieve,
+    levtype=SFC,
+    param=228,
+    target="\${DATA_DIR}/[date]_[time]_[step].grib"
+retrieve,
+    class=OD,
+    expver=1,
+    stream=OPER,
+    type=FC,
+    levtype=ML,
+    packing=simple,
+    levelist=90/to/137/by/1,
+    grid=\${GRID_RES}/\${GRID_RES},
+    area=\${AREA},
+    date=\${TODAY_DATE},
+    time=00,
+    step=0/to/\${FC_HOURS}/by/3,
+    param=130/131/132/133/135,
+    target="\${DATA_DIR}/[date]_[time]_[step].grib"
+retrieve,
+    levelist=1,
+    param=152,
+    target="\${DATA_DIR}/[date]_[time]_[step].grib"
+retrieve,
+    levtype=SFC,
+    param=228,
+    target="\${DATA_DIR}/[date]_[time]_[step].grib"
+    '
+    fi
+
+    cat > ${BATCH_SCRIPT_FILEPATH} <<EOF 
+#!/bin/bash
+
+# The job name
+#SBATCH --job-name=${ID_NAME}_${START_DATE}_${N_DAYS}days
+#SBATCH --output=${ID_NAME}_${START_DATE}_${N_DAYS}days.out
+#SBATCH --error=${ID_NAME}_${START_DATE}_${N_DAYS}days.out
+#SBATCH --chdir=${LAUNCH_WORKING_DIR}
+#SBATCH --time=1-0
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=${USER_EMAIL}
+
+# This is the job
+
+export MARS_MULTITARGET_STRICT_FORMAT=1
+
+ID_NAME="${ID_NAME}"
+GRID_RES="${GRID_RESOLUTION}"
+AREA="${LAT_MAX}/${LON_MIN}/${LAT_MIN}/${LON_MAX}"
+
+DATA_DIR="${DATA_DIR}/${ID_NAME}/${START_DATE}_${END_DATE}"
+WORK_DIR="${LAUNCH_WORKING_DIR}"
+
+FINAL_SERVER_USER="${SERVER_USER}"
+FINAL_SERVER_ADDRESS="${SERVER_ADDRESS}"
+FINAL_SERVER_DATA_DIR="${SERVER_DATA_DIR}"
+FINAL_SERVER_WORKING_DIR="${SERVER_WORKING_DIR}"
+SIMULATION_CONFIG_FILEPATH="${SIMU_CONFIG_FILEPATH}"
+REMOTE_SIMULATION_JOB_SCRIPT="${REMOTE_JOB_FILEPATH}"
+
+START_DATE="${START_DATE}"
+END_DATE="${END_DATE}"
+FC_HOURS="${FC_HOURS}"
+TODAY_DATE="${TODAY_DATE}"
+END_AN_DATE="${END_AN_DATE}"
+AN_N_DAYS="${AN_N_DAYS}"
+FC_N_DAYS="${FC_N_DAYS}"
+FC_HOURS="${FC_HOURS}"
+
+module load ecmwf-toolbox
+REQUEST_PATH="\${WORK_DIR}/\${START_DATE}_\${END_DATE}_${DATA_TYPE}.req"
+cat > \${REQUEST_PATH} <<EOF1
+${MARS_REQ}
 EOF1
 
 printf "%s - Requesting data on mars\n" "\$(date +'%d/%m/%Y - %H:%M:%S')"
@@ -559,382 +693,7 @@ EOF
     echo "Data extraction and simulation job was submitted, check the output in the ${LAUNCH_WORKING_DIR}/${ID_NAME}_${START_DATE}_${N_DAYS}days.out file"
 }
 
-function extract_fc_data(){
-    BATCH_SCRIPT_FILEPATH="${LAUNCH_WORKING_DIR}/sbatch_script_${ID_NAME}_${START_DATE}_${N_DAYS}days.sh"
-    FC_HOURS=$(count_fc_hours ${N_DAYS})
-    IFS="/" read -ra NUMBERS <<< "${FC_HOURS}"
-    FC_DELTA=$(( NUMBERS[1] - NUMBERS[0] ))
-    SIMU_CONFIG_FILEPATH=$(write_simulaiton_config_file  ${FC_DELTA})
-    REMOTE_JOB_FILEPATH=$(write_simu_job_script ${SIMU_CONFIG_FILEPATH})
-
-    cat > ${BATCH_SCRIPT_FILEPATH} <<EOF 
-#!/bin/bash
-
-# The job name
-#SBATCH --job-name=${ID_NAME}_${START_DATE}_${N_DAYS}days
-#SBATCH --output=${ID_NAME}_${START_DATE}_${N_DAYS}days.out
-#SBATCH --error=${ID_NAME}_${START_DATE}_${N_DAYS}days.out
-#SBATCH --chdir=${LAUNCH_WORKING_DIR}
-#SBATCH --time=1-0
-#SBATCH --mail-type=ALL
-#SBATCH --mail-user=${USER_EMAIL}
-
-# This is the job
-
-export MARS_MULTITARGET_STRICT_FORMAT=1
-
-ID_NAME="${ID_NAME}"
-GRID_RES="${GRID_RESOLUTION}"
-AREA="${LAT_MAX}/${LON_MIN}/${LAT_MIN}/${LON_MAX}"
-
-DATA_DIR="${DATA_DIR}/${ID_NAME}/${START_DATE}_${END_DATE}"
-WORK_DIR="${LAUNCH_WORKING_DIR}"
-
-FINAL_SERVER_USER="${SERVER_USER}"
-FINAL_SERVER_ADDRESS="${SERVER_ADDRESS}"
-FINAL_SERVER_DATA_DIR="${SERVER_DATA_DIR}"
-FINAL_SERVER_WORKING_DIR="${SERVER_WORKING_DIR}"
-SIMULATION_CONFIG_FILEPATH="${SIMU_CONFIG_FILEPATH}"
-REMOTE_SIMULATION_JOB_SCRIPT="${REMOTE_JOB_FILEPATH}"
-
-if [ ! -d \${DATA_DIR} ]; then
-    mkdir -p \${DATA_DIR}
-fi
-
-START_DATE="${START_DATE}"
-END_DATE="${END_DATE}"
-FC_HOURS="${FC_HOURS}"
-
-module load ecmwf-toolbox
-
-REQUEST_PATH="\${WORK_DIR}/\${START_DATE}_\${END_DATE}_an.req"
-cat > \${REQUEST_PATH} <<EOF1
-retrieve,
-    class=OD,
-    expver=1,
-    stream=OPER,
-    type=FC,
-    levtype=ML,
-    levelist=90/to/137/by/1,
-    packing=simple,
-    grid=\${GRID_RES}/\${GRID_RES},
-    area=\${AREA},
-    date=\${START_DATE},
-    time=00,
-    step=\${FC_HOURS},
-    param=130/131/132/133/135,
-    target="\${DATA_DIR}/[date]_[time]_[step].grib"
-retrieve,
-    levelist=1,
-    param=152,
-    target="\${DATA_DIR}/[date]_[time]_[step].grib"
-retrieve,
-    levtype=SFC,
-    param=228,
-    target="\${DATA_DIR}/[date]_[time]_[step].grib"
-EOF1
-
-printf "%s - Requesting data on mars\n" "\$(date +'%d/%m/%Y - %H:%M:%S')"
-mars \${REQUEST_PATH}
-mars_status=\$?
-if [ \${mars_status} == 0 ]; then
-    printf "%s - Getting data from mars - DONE\n" "\$(date +'%d/%m/%Y - %H:%M:%S')"
-else
-    printf "%s - Error while retrieving data from MARS : exit status \${mars_status}\n" "\$(date +'%d/%m/%Y - %H:%M:%S')"
-    exit \${mars_status}
-fi
-
-for RESULT_GRIB_FILE in \${DATA_DIR}/*.grib; do
-    FILENAME=\$(basename \${RESULT_GRIB_FILE} ".grib")
-    date_part=\$(echo "\${FILENAME}" | cut -d'_' -f1)
-    time_part=\$(echo "\${FILENAME}" | cut -d'_' -f2)
-    fcstep_part=\$(echo "\${FILENAME}" | cut -d'_' -f3)
-    new_name=\$(date --date "\${date_part} \${time_part} + \${fcstep_part} hours" +"%y%m%d%H")
-    mv \${RESULT_GRIB_FILE} \${DATA_DIR}/\${new_name}.grib
-done
-
-EOF
-
-    if [ -z ${SERVER_USER} ] || [ -z ${SERVER_ADDRESS} ] || [ -z ${SERVER_DATA_DIR} ]; then
-        cat >> ${BATCH_SCRIPT_FILEPATH} <<EOF
-printf "%s - No file transfer nor simulation were performed, you can find your data in \${DATA_DIR}\n" "\$(date +'%d/%m/%Y - %H:%M:%S')"
-printf "%s - END OF JOB\n" "\$(date +'%d/%m/%Y - %H:%M:%S')" 
-exit 0
-EOF
-    else
-        cat >> ${BATCH_SCRIPT_FILEPATH} <<EOF
-ssh "\${FINAL_SERVER_USER}@\${FINAL_SERVER_ADDRESS}" "mkdir -p ${SERVER_DATA_DIR}"
-TOTAL_FILES=\$(ls \${DATA_DIR}/*.grib | wc -l)
-TRANSFERRED_FILES=0
-printf "%s - Copying data to %s\n" "\$(date +'%d/%m/%Y - %H:%M:%S')" "\${FINAL_SERVER_USER}@\${FINAL_SERVER_ADDRESS}:\${FINAL_SERVER_DATA_DIR}/"
-for RESULT_GRIB_FILE in \${DATA_DIR}/*.grib; do
-    SRC_PATH="\${RESULT_GRIB_FILE}"
-    DST_PATH="\${FINAL_SERVER_USER}@\${FINAL_SERVER_ADDRESS}:\${FINAL_SERVER_DATA_DIR}/"
-    printf "%s - Transferring %s ---> %s\n" "\$(date +'%d/%m/%Y - %H:%M:%S')" "\$(basename \${SRC_PATH})" "\${DST_PATH}"
-    for try_ind in {1..10}; do
-        scp -q "\${SRC_PATH}" "\${DST_PATH}"
-        status=\$?
-        if (( \${status} == 0 )); then
-            TRANSFERRED_FILES=\$((\${TRANSFERRED_FILES}+1))
-            break
-        fi
-    done
-    if (( \${try_ind} == 10 )); then
-        printf "%s - ERROR with transferring %s\n" "\$(date +'%d/%m/%Y - %H:%M:%S')" "\$(basename \${SRC_PATH})"
-    fi
-done
-printf "%s - Transferred %s/%s files\n" "\$(date +'%d/%m/%Y - %H:%M:%S')" "\${TRANSFERRED_FILES}" "\${TOTAL_FILES}"
-NOT_TRANSFERRED_FILES=\$((\${TOTAL_FILES}-\${TRANSFERRED_FILES}))
-if (( \${NOT_TRANSFERRED_FILES} != 0 )); then 
-    printf "%s - Error with transferring %s files\n" "\$(date +'%d/%m/%Y - %H:%M:%S')" "\$((\${TOTAL_FILES}-\${TRANSFERRED_FILES}))"
-    printf "%s - Simulation was not launched due to a possible lack of the non-transferred ECMWF data" "\$(date +'%d/%m/%Y - %H:%M:%S')"
-    printf "%s - END OF JOB\n" "\$(date +'%d/%m/%Y - %H:%M:%S')"
-    exit 1
-else
-    echo "\$(date +'%Y-%m-%d %H:%M:%S') - Data extraction done, data copied to the \${FINAL_SERVER_USER}@\${FINAL_SERVER_ADDRESS}:\${FINAL_SERVER_DATA_DIR}/"
-    DST_PATH="\${FINAL_SERVER_USER}@\${FINAL_SERVER_ADDRESS}:\${FINAL_SERVER_WORKING_DIR}"
-    ssh "\${FINAL_SERVER_USER}@\${FINAL_SERVER_ADDRESS}" "mkdir -p ${SERVER_WORKING_DIR}"
-    scp -q "\${SIMULATION_CONFIG_FILEPATH}" "\${DST_PATH}/"
-    scp -q "\${REMOTE_SIMULATION_JOB_SCRIPT}" "\${DST_PATH}/"
-    ssh "\${FINAL_SERVER_USER}@\${FINAL_SERVER_ADDRESS}" "chmod +x ${SERVER_WORKING_DIR}/$(basename ${REMOTE_JOB_FILEPATH})"
-    echo "\$(date +'%Y-%m-%d %H:%M:%S') - Submitting the simulation script \${FINAL_SERVER_WORKING_DIR}/$(basename \${REMOTE_SIMULATION_JOB_SCRIPT}) as a job on \${FINAL_SERVER_ADDRESS}"
-    jobID=\$(ssh "\${FINAL_SERVER_USER}@\${FINAL_SERVER_ADDRESS}" "sbatch ${SERVER_WORKING_DIR}/$(basename ${REMOTE_JOB_FILEPATH})")
-    echo "\$(date +'%Y-%m-%d %H:%M:%S') - \${jobID}"
-    jobID="\${jobID//[!0-9]/}"
-    while true; do
-        remote_command="squeue -u \${FINAL_SERVER_USER} -j \${jobID}"
-        job_status=\$(ssh "\${FINAL_SERVER_USER}@\${FINAL_SERVER_ADDRESS}" \${remote_command} 2>/dev/null)
-        job_status=\$?
-        if [ ! \${job_status} -eq 0 ]; then
-            echo "\$(date +'%Y-%m-%d %H:%M:%S') - Remote job has finished, check the \${FINAL_SERVER_WORKING_DIR} on the remote server for the log output to see if the simulation was successful"
-            printf "%s - END OF JOB\n" "\$(date +'%d/%m/%Y - %H:%M:%S')"
-            exit 0
-        else
-            sleep 15  # Adjust the sleep interval as needed
-        fi
-    done
-fi
-EOF
-    fi
-    chmod +x ${BATCH_SCRIPT_FILEPATH}
-    sbatch ${BATCH_SCRIPT_FILEPATH}
-    echo "Data extraction and simulation job was submitted, check the output in the ${LAUNCH_WORKING_DIR}/${ID_NAME}_${START_DATE}_${N_DAYS}days.out file"
-}
-
-function extract_an_fc_data(){
-    BATCH_SCRIPT_FILEPATH="${LAUNCH_WORKING_DIR}/sbatch_script_${ID_NAME}_${START_DATE}_${N_DAYS}days.sh"
-    
-    TODAY_DATE=$(date +'%Y%m%d')
-    END_AN_DATE=$(date -d "${TODAY_DATE} - 1 day" "+%Y%m%d")
-    AN_N_DAYS=$(( ($(date -d ${TODAY_DATE} +%s) - $(date -d ${START_DATE} +%s)) / 86400 ))
-    FC_N_DAYS=$(( ($(date -d ${END_DATE} +%s) - $(date -d ${TODAY_DATE} +%s) + 86400) / 86400 ))
-    FC_HOURS=$((${FC_N_DAYS}*24))
-
-    SIMU_CONFIG_FILEPATH=$(write_simulaiton_config_file 3)
-    REMOTE_JOB_FILEPATH=$(write_simu_job_script ${SIMU_CONFIG_FILEPATH})
-
-    cat > ${BATCH_SCRIPT_FILEPATH} <<EOF 
-#!/bin/bash
-
-# The job name
-#SBATCH --job-name=${ID_NAME}_${START_DATE}_${N_DAYS}days
-#SBATCH --output=${ID_NAME}_${START_DATE}_${N_DAYS}days.out
-#SBATCH --error=${ID_NAME}_${START_DATE}_${N_DAYS}days.out
-#SBATCH --chdir=${LAUNCH_WORKING_DIR}
-#SBATCH --time=1-0
-#SBATCH --mail-type=ALL
-#SBATCH --mail-user=${USER_EMAIL}
-
-# This is the job
-
-export MARS_MULTITARGET_STRICT_FORMAT=1
-
-ID_NAME="${ID_NAME}"
-GRID_RES="${GRID_RESOLUTION}"
-AREA="${LAT_MAX}/${LON_MIN}/${LAT_MIN}/${LON_MAX}"
-
-DATA_DIR="${DATA_DIR}/${ID_NAME}/${START_DATE}_${END_DATE}"
-WORK_DIR="${LAUNCH_WORKING_DIR}"
-
-FINAL_SERVER_USER="${SERVER_USER}"
-FINAL_SERVER_ADDRESS="${SERVER_ADDRESS}"
-FINAL_SERVER_DATA_DIR="${SERVER_DATA_DIR}"
-FINAL_SERVER_WORKING_DIR="${SERVER_WORKING_DIR}"
-SIMULATION_CONFIG_FILEPATH="${SIMU_CONFIG_FILEPATH}"
-REMOTE_SIMULATION_JOB_SCRIPT="${REMOTE_JOB_FILEPATH}"
-
-if [ ! -d \${DATA_DIR} ]; then
-    mkdir -p \${DATA_DIR}
-fi
-
-START_DATE="${START_DATE}"
-END_DATE="${END_DATE}"
-TODAY_DATE="${TODAY_DATE}"
-END_AN_DATE="${END_AN_DATE}"
-AN_N_DAYS="${AN_N_DAYS}"
-FC_N_DAYS="${FC_N_DAYS}"
-FC_HOURS="${FC_HOURS}"
-
-module load ecmwf-toolbox
-
-REQUEST_PATH="\${WORK_DIR}/\${START_DATE}_\${END_DATE}_an.req"
-cat > \${REQUEST_PATH} <<EOF1
-retrieve,
-    class=OD,
-    expver=1,
-    stream=OPER,
-    type=AN,
-    levtype=ML,
-    levelist=90/to/137/by/1,
-    packing=simple,
-    grid=\${GRID_RES}/\${GRID_RES},
-    area=\${AREA},
-    date=\${START_DATE}/to/\${END_AN_DATE},
-    time=00/06/12/18,
-    param=130/131/132/133/135,
-    target="\${DATA_DIR}/[date]_[time]_[step].grib"
-retrieve,
-    levelist=1,
-    param=152,
-    target="\${DATA_DIR}/[date]_[time]_[step].grib"
-retrieve,
-    levtype=SFC,
-    param=228,
-    target="\${DATA_DIR}/[date]_[time]_[step].grib"
-retrieve,
-    class=OD,
-    stream=OPER,
-    expver=1,
-    levtype=ML,
-    levelist=90/to/137/by/1,
-    type=FC,
-    packing=simple,
-    param=130/131/132/133/135,
-    date=\${START_DATE}/to/\${END_AN_DATE},
-    time=00/12,
-    step=3/9,
-    grid=\${GRID_RES}/\${GRID_RES},
-    area=\${AREA},
-    target="\${DATA_DIR}/[date]_[time]_[step].grib"
-retrieve,
-    levelist=1,
-    param=152,
-    target="\${DATA_DIR}/[date]_[time]_[step].grib"
-retrieve,
-    levtype=SFC,
-    param=228,
-    target="\${DATA_DIR}/[date]_[time]_[step].grib"
-retrieve,
-    class=OD,
-    expver=1,
-    stream=OPER,
-    type=FC,
-    levtype=ML,
-    packing=simple,
-    levelist=90/to/137/by/1,
-    grid=\${GRID_RES}/\${GRID_RES},
-    area=\${AREA},
-    date=\${TODAY_DATE},
-    time=00,
-    step=0/to/\${FC_HOURS}/by/3,
-    param=130/131/132/133/135,
-    target="\${DATA_DIR}/[date]_[time]_[step].grib"
-retrieve,
-    levelist=1,
-    param=152,
-    target="\${DATA_DIR}/[date]_[time]_[step].grib"
-retrieve,
-    levtype=SFC,
-    param=228,
-    target="\${DATA_DIR}/[date]_[time]_[step].grib"
-EOF1
-
-printf "%s - Requesting data on mars\n" "\$(date +'%d/%m/%Y - %H:%M:%S')"
-mars \${REQUEST_PATH}
-mars_status=\$?
-if [ \${mars_status} == 0 ]; then
-    printf "%s - Getting data from mars - DONE\n" "\$(date +'%d/%m/%Y - %H:%M:%S')"
-else
-    printf "%s - Error while retrieving data from MARS : exit status \${mars_status}\n" "\$(date +'%d/%m/%Y - %H:%M:%S')"
-    exit \${mars_status}
-fi
-
-for RESULT_GRIB_FILE in \${DATA_DIR}/*.grib; do
-    FILENAME=\$(basename \${RESULT_GRIB_FILE} ".grib")
-    date_part=\$(echo "\${FILENAME}" | cut -d'_' -f1)
-    time_part=\$(echo "\${FILENAME}" | cut -d'_' -f2)
-    fcstep_part=\$(echo "\${FILENAME}" | cut -d'_' -f3)
-    new_name=\$(date --date "\${date_part} \${time_part} + \${fcstep_part} hours" +"%y%m%d%H")
-    mv \${RESULT_GRIB_FILE} \${DATA_DIR}/\${new_name}.grib
-done
-
-EOF
-
-    if [ -z ${SERVER_USER} ] || [ -z ${SERVER_ADDRESS} ] || [ -z ${SERVER_DATA_DIR} ]; then
-        cat >> ${BATCH_SCRIPT_FILEPATH} <<EOF
-printf "%s - No file transfer nor simulation were performed, you can find your data in \${DATA_DIR}\n" "\$(date +'%d/%m/%Y - %H:%M:%S')"
-printf "%s - END OF JOB\n" "\$(date +'%d/%m/%Y - %H:%M:%S')" 
-exit 0
-EOF
-    else
-        cat >> ${BATCH_SCRIPT_FILEPATH} <<EOF
-ssh "\${FINAL_SERVER_USER}@\${FINAL_SERVER_ADDRESS}" "mkdir -p ${SERVER_DATA_DIR}"
-TOTAL_FILES=\$(ls \${DATA_DIR}/*.grib | wc -l)
-TRANSFERRED_FILES=0
-printf "%s - Copying data to %s\n" "\$(date +'%d/%m/%Y - %H:%M:%S')" "\${FINAL_SERVER_USER}@\${FINAL_SERVER_ADDRESS}:\${FINAL_SERVER_DATA_DIR}/"
-for RESULT_GRIB_FILE in \${DATA_DIR}/*.grib; do
-    SRC_PATH="\${RESULT_GRIB_FILE}"
-    DST_PATH="\${FINAL_SERVER_USER}@\${FINAL_SERVER_ADDRESS}:\${FINAL_SERVER_DATA_DIR}/"
-    printf "%s - Transferring %s ---> %s\n" "\$(date +'%d/%m/%Y - %H:%M:%S')" "\$(basename \${SRC_PATH})" "\${DST_PATH}"
-    for try_ind in {1..10}; do
-        scp -q "\${SRC_PATH}" "\${DST_PATH}"
-        status=\$?
-        if (( \${status} == 0 )); then
-            TRANSFERRED_FILES=\$((\${TRANSFERRED_FILES}+1))
-            break
-        fi
-    done
-    if (( \${try_ind} == 10 )); then
-        printf "%s - ERROR with transferring %s\n" "\$(date +'%d/%m/%Y - %H:%M:%S')" "\$(basename \${SRC_PATH})"
-    fi
-done
-printf "%s - Transferred %s/%s files\n" "\$(date +'%d/%m/%Y - %H:%M:%S')" "\${TRANSFERRED_FILES}" "\${TOTAL_FILES}"
-NOT_TRANSFERRED_FILES=\$((\${TOTAL_FILES}-\${TRANSFERRED_FILES}))
-if (( \${NOT_TRANSFERRED_FILES} != 0 )); then 
-    printf "%s - Error with transferring %s files\n" "\$(date +'%d/%m/%Y - %H:%M:%S')" "\$((\${TOTAL_FILES}-\${TRANSFERRED_FILES}))"
-    printf "%s - Simulation was not launched due to a possible lack of the non-transferred ECMWF data" "\$(date +'%d/%m/%Y - %H:%M:%S')"
-    printf "%s - END OF JOB\n" "\$(date +'%d/%m/%Y - %H:%M:%S')"
-    exit 1
-else
-    echo "\$(date +'%Y-%m-%d %H:%M:%S') - Data extraction done, data copied to the \${FINAL_SERVER_USER}@\${FINAL_SERVER_ADDRESS}:\${FINAL_SERVER_DATA_DIR}/"
-    DST_PATH="\${FINAL_SERVER_USER}@\${FINAL_SERVER_ADDRESS}:\${FINAL_SERVER_WORKING_DIR}"
-    ssh "\${FINAL_SERVER_USER}@\${FINAL_SERVER_ADDRESS}" "mkdir -p ${SERVER_WORKING_DIR}"
-    scp -q "\${SIMULATION_CONFIG_FILEPATH}" "\${DST_PATH}/"
-    scp -q "\${REMOTE_SIMULATION_JOB_SCRIPT}" "\${DST_PATH}/"
-    ssh "\${FINAL_SERVER_USER}@\${FINAL_SERVER_ADDRESS}" "chmod +x ${SERVER_WORKING_DIR}/$(basename ${REMOTE_JOB_FILEPATH})"
-    echo "\$(date +'%Y-%m-%d %H:%M:%S') - Submitting the simulation script \${FINAL_SERVER_WORKING_DIR}/$(basename \${REMOTE_SIMULATION_JOB_SCRIPT}) as a job on \${FINAL_SERVER_ADDRESS}"
-    jobID=\$(ssh "\${FINAL_SERVER_USER}@\${FINAL_SERVER_ADDRESS}" "sbatch ${SERVER_WORKING_DIR}/$(basename ${REMOTE_JOB_FILEPATH})")
-    echo "\$(date +'%Y-%m-%d %H:%M:%S') - \${jobID}"
-    jobID="\${jobID//[!0-9]/}"
-    while true; do
-        remote_command="squeue -u \${FINAL_SERVER_USER} -j \${jobID}"
-        job_status=\$(ssh "\${FINAL_SERVER_USER}@\${FINAL_SERVER_ADDRESS}" \${remote_command} 2>/dev/null)
-        job_status=\$?
-        if [ ! \${job_status} -eq 0 ]; then
-            echo "\$(date +'%Y-%m-%d %H:%M:%S') - Remote job has finished, check the \${FINAL_SERVER_WORKING_DIR} on the remote server for the log output to see if the simulation was successful"
-            printf "%s - END OF JOB\n" "\$(date +'%d/%m/%Y - %H:%M:%S')"
-            exit 0
-        else
-            sleep 15  # Adjust the sleep interval as needed
-        fi
-    done
-fi
-EOF
-    fi
-    chmod +x ${BATCH_SCRIPT_FILEPATH}
-    sbatch ${BATCH_SCRIPT_FILEPATH}
-    echo "Data extraction and simulation job was submitted, check the output in the ${LAUNCH_WORKING_DIR}/${ID_NAME}_${START_DATE}_${N_DAYS}days.out file"
-}
+# ====================================================================================================
 
 # +----------------------------------+
 # | Main function                    |
@@ -951,10 +710,7 @@ function main(){
         mkdir -p ${LAUNCH_WORKING_DIR}
     fi
 
-    if [[ ${DATA_TYPE} == "an" ]]; then extract_an_data; fi
-    if [[ ${DATA_TYPE} == "fc" ]]; then extract_fc_data; fi
-    if [[ ${DATA_TYPE} == "an+fc" ]]; then extract_an_fc_data; fi
-
+    write_script ${DATA_TYPE}
 }
 
 # +----------------------------------+
