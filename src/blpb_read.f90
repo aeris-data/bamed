@@ -61,7 +61,7 @@ CONTAINS
         start(1)=date
         start(2)=time
 
-        ngrib=nday*24/dtt+6
+        ngrib=(nday*24/dtt)+6
         ! write(*,*) 'Number of grib required: ',ngrib
 
         np=index(path,' ')-1

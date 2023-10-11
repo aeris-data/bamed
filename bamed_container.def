@@ -26,6 +26,3 @@ From: ubuntu:20.04
     cd /usr/local/bamed/src/
     make clean
     make
-
-    # echo "alias ll='ls -alF --color=auto'" >> /etc/profile
-    # echo "alias ll='ls -alF --color=auto'" >> /etc/bash.bashrc
