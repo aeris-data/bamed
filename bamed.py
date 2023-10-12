@@ -289,11 +289,7 @@ class bamed_simulation:
                         ax.add_feature(cf.BORDERS, linewidth=0.3, linestyle=":")
                         ax.add_feature(cf.LAND, alpha=0.2)
                         ax.add_feature(cf.OCEAN, alpha=0.2)
-                        grd = ax.gridlines(draw_labels=["x","y"], linestyle="--")
-                        grd.left_labels = []
-                        grd.top_labels = []
-                        grd.ylabel_style = {"fontsize":15}
-                        grd.xlabel_style = {"fontsize":15}
+                        grd = ax.gridlines(draw_labels=["x","y","bottom","left"], linestyle="--", ylabel_style={"fontsize":12}, xlabel_style={"fontsize":12})
                         ax.legend()
                         LOGGER.info("Saving fig")
                         fig.savefig(f"{out_dir}/{date}_{time}.png", dpi=300, bbox_inches="tight")
