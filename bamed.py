@@ -698,11 +698,6 @@ if __name__=="__main__":
                     # Write input .dat file for the BAMED executable
                     simulation_config.write_config_file(res_dir)
                     # ------------------------------------------
-                    # Change the current directory because the executable
-                    # has to be called from the working directory where inputs
-                    # are stored and where outputs will be written
-                    # os.chdir(res_dir)
-                    # ------------------------------------------
                     # Run simulation
                     ret_code = run_bash_command(BAMED_EXE, res_dir)
     
