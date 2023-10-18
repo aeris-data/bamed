@@ -10,7 +10,7 @@ The BAMED tool is containerized into a Singularity container so one must have Si
 ## Installation
 1. `git clone https://github.com/aeris-data/bamed.git`
 2. `sudo singularity build ./bamed.sif ./bamed-container.def`
-The `singularity build` command will build the container `bamed.sif` from its definition file, using the source files got from the git repo; so for the build it is important to call the command from the git repo directory that one has made. Afterwards, the sif image can be placed anywhere independently of the source files.
+The `singularity build` command will build the container `bamed.sif` from its definition file, using the source files got from the git repo; so for the build it is important to call the command from the git repo directory that one has made. ⚠️ ***The build requires sudo rights.*** Afterwards, the sif image can be placed anywhere independently of the source files.
 
 ## Usage
 The main script is bamed.py which needs the input configuration file user-config.xml (which can be renamed, the name is not important). The Python script handles the launch combinations, writes input files for the Fortran executable and post-process simulation results. The main usage is `python3 bamed.py --config user-config.xml [--shell-log]`. The script must be launched inside the Singularity container. More details in the manual `SEDOO-AERIS-DT-003-MAG_BAMED_ATBD.pdf`.
