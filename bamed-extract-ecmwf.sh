@@ -641,9 +641,12 @@ EOF
         NOT_TRANSFERRED_FILES=$((${TOTAL_FILES}-${TRANSFERRED_FILES}))
         if (( ${NOT_TRANSFERRED_FILES} != 0 )); then 
             printf "%s - Error with transferring %s files\n" "$(date +'%d/%m/%Y - %H:%M:%S')" "$((${TOTAL_FILES}-${TRANSFERRED_FILES}))"
-            printf "%s - Simulation was not launched due to a possible lack of the non-transferred ECMWF data" "$(date +'%d/%m/%Y - %H:%M:%S')"
+	    if [ ${LAUNCH_SIMULATION} == true ]; then
+                printf "%s - Simulation was not launched due to a possible lack of the non-transferred ECMWF data" "$(date +'%d/%m/%Y - %H:%M:%S')"
+	    fi
             printf "%s - END OF JOB\n" "$(date +'%d/%m/%Y - %H:%M:%S')"
             exit 1
+	fi  
         else
             echo "$(date +'%d/%m/%Y - %H:%M:%S') - Data extraction done, data copied to the ${DST_PATH}"
             DST_PATH="${SERVER_USER}@${SERVER_ADDRESS}:${SERVER_DATA_DIR}"
