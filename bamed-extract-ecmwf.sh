@@ -65,7 +65,7 @@
 ####### END OF HELP
 ####### DO NOT CHANGE ANYTHING BELOW
 
-set -e -x
+set -e
 
 SCRIPT_NAME=$(basename "$0")
 
@@ -641,34 +641,38 @@ EOF
         NOT_TRANSFERRED_FILES=$((${TOTAL_FILES}-${TRANSFERRED_FILES}))
         if (( ${NOT_TRANSFERRED_FILES} != 0 )); then 
             printf "%s - Error with transferring %s files\n" "$(date +'%d/%m/%Y - %H:%M:%S')" "$((${TOTAL_FILES}-${TRANSFERRED_FILES}))"
-            printf "%s - Simulation was not launched due to a possible lack of the non-transferred ECMWF data" "$(date +'%d/%m/%Y - %H:%M:%S')"
+            if [ ${LAUNCH_SIMULATION} == true ]; then
+                printf "%s - Simulation was not launched due to a possible lack of the non-transferred ECMWF data" "$(date +'%d/%m/%Y - %H:%M:%S')"
+            fi
             printf "%s - END OF JOB\n" "$(date +'%d/%m/%Y - %H:%M:%S')"
             exit 1
         else
             echo "$(date +'%d/%m/%Y - %H:%M:%S') - Data extraction done, data copied to the ${DST_PATH}"
             DST_PATH="${SERVER_USER}@${SERVER_ADDRESS}:${SERVER_DATA_DIR}"
-            cmd="mkdir -p ${SERVER_WORKING_DIR}"
-            ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=5 "${SERVER_USER}@${SERVER_ADDRESS}" ${cmd}
-            scp -o ServerAliveInterval=30 -o ServerAliveCountMax=5 -q "${SIMU_CONFIG_FILEPATH}" "${DST_PATH}/"
-            scp -o ServerAliveInterval=30 -o ServerAliveCountMax=5 -q "${REMOTE_JOB_FILEPATH}" "${DST_PATH}/"
-            cmd="chmod +x ${SERVER_WORKING_DIR}/$(basename ${REMOTE_JOB_FILEPATH})"
-            ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=5 "${SERVER_USER}@${SERVER_ADDRESS}" ${cmd}
-            echo "$(date +'%d/%m/%Y - %H:%M:%S') - Submitting the simulation script ${SERVER_WORKING_DIR}/$(basename ${REMOTE_JOB_FILEPATH}) as a job on ${SERVER_ADDRESS}"
-            cmd="sbatch ${SERVER_WORKING_DIR}/$(basename ${REMOTE_JOB_FILEPATH})"
-            jobID=$(ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=5 "${SERVER_USER}@${SERVER_ADDRESS}" ${cmd})
-            echo "$(date +'%d/%m/%Y - %H:%M:%S') - ${jobID}"
-            jobID="${jobID//[!0-9]/}"
-            while true; do
-                cmd="ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=5 ${SERVER_USER}@${SERVER_ADDRESS} squeue -u ${SERVER_USER} -j ${jobID} 2>/dev/null"
-                if ${cmd}; then
-                    echo "$(date +'%d/%m/%Y - %H:%M:%S') - Simulation is running..."
-                    sleep 15  # Adjust the sleep interval as needed
-                else
-                    echo "$(date +'%d/%m/%Y - %H:%M:%S') - Remote job has finished, check the ${SERVER_WORKING_DIR} on the remote server for the log output to see if the simulation was successful"
-                    printf "%s - END OF JOB\n" "$(date +'%d/%m/%Y - %H:%M:%S')"
-                    exit 0
-                fi
-            done
+            if [ ${LAUNCH_SIMULATION} == true ]; then
+                cmd="mkdir -p ${SERVER_WORKING_DIR}"
+                ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=5 "${SERVER_USER}@${SERVER_ADDRESS}" ${cmd}
+                scp -o ServerAliveInterval=30 -o ServerAliveCountMax=5 -q "${SIMU_CONFIG_FILEPATH}" "${DST_PATH}/"
+                scp -o ServerAliveInterval=30 -o ServerAliveCountMax=5 -q "${REMOTE_JOB_FILEPATH}" "${DST_PATH}/"
+                cmd="chmod +x ${SERVER_WORKING_DIR}/$(basename ${REMOTE_JOB_FILEPATH})"
+                ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=5 "${SERVER_USER}@${SERVER_ADDRESS}" ${cmd}
+                echo "$(date +'%d/%m/%Y - %H:%M:%S') - Submitting the simulation script ${SERVER_WORKING_DIR}/$(basename ${REMOTE_JOB_FILEPATH}) as a job on ${SERVER_ADDRESS}"
+                cmd="sbatch ${SERVER_WORKING_DIR}/$(basename ${REMOTE_JOB_FILEPATH})"
+                jobID=$(ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=5 "${SERVER_USER}@${SERVER_ADDRESS}" ${cmd})
+                echo "$(date +'%d/%m/%Y - %H:%M:%S') - ${jobID}"
+                jobID="${jobID//[!0-9]/}"
+                while true; do
+                    cmd="ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=5 ${SERVER_USER}@${SERVER_ADDRESS} squeue -u ${SERVER_USER} -j ${jobID} 2>/dev/null"
+                    if ${cmd}; then
+                        echo "$(date +'%d/%m/%Y - %H:%M:%S') - Simulation is running..."
+                        sleep 15  # Adjust the sleep interval as needed
+                    else
+                        echo "$(date +'%d/%m/%Y - %H:%M:%S') - Remote job has finished, check the ${SERVER_WORKING_DIR} on the remote server for the log output to see if the simulation was successful"
+                        printf "%s - END OF JOB\n" "$(date +'%d/%m/%Y - %H:%M:%S')"
+                        exit 0
+                    fi
+                done
+            fi
         fi
     fi
 }
