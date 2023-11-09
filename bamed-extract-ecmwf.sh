@@ -612,7 +612,7 @@ EOF
     done
 
     if [ -z ${SERVER_USER} ] || [ -z ${SERVER_ADDRESS} ] || [ -z ${SERVER_DATA_DIR} ]; then
-        printf "%s - No file transfer nor simulation were performed, you can find your data in ${DATA_DIR}\n" "$(date +'%d/%m/%Y - %H:%M:%S')"
+        printf "%s - No distant server info was configured, thus no file transfer nor simulation were performed, you can find your data in ${DATA_DIR}\n" "$(date +'%d/%m/%Y - %H:%M:%S')"
         printf "%s - END OF JOB\n" "$(date +'%d/%m/%Y - %H:%M:%S')" 
         exit 0
     else

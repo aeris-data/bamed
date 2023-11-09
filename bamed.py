@@ -649,7 +649,7 @@ if __name__=="__main__":
     simulation_obj.verify_workdir()
 
     global LOGGER, LOG_FILEPATH
-    LOG_FILEPATH = simulation_obj.work_dir+"/bamed_"+datetime.datetime.now().strftime("%Y%m%d_%H%M%S")+".log"
+    LOG_FILEPATH = simulation_obj.work_dir+"/bamed-simulation.log"
     LOGGER = start_log(LOG_FILEPATH, args.shell_log)
 
     status = simulation_obj.verify()
