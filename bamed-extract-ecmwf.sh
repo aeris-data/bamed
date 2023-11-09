@@ -65,7 +65,7 @@
 ####### END OF HELP
 ####### DO NOT CHANGE ANYTHING BELOW
 
-set -e -x
+set -e
 
 SCRIPT_NAME=$(basename "$0")
 
