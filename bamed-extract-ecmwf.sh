@@ -646,6 +646,7 @@ EOF
             fi
             printf "%s - END OF JOB\n" "$(date +'%d/%m/%Y - %H:%M:%S')"
             exit 1
+	fi  
         else
             echo "$(date +'%d/%m/%Y - %H:%M:%S') - Data extraction done, data copied to the ${DST_PATH}"
             DST_PATH="${SERVER_USER}@${SERVER_ADDRESS}:${SERVER_DATA_DIR}"
