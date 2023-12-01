@@ -596,7 +596,6 @@ EOF
     mars_status=$?
     if [ ${mars_status} == 0 ]; then
         printf "%s - Getting data from mars - DONE\n" "$(date +'%d/%m/%Y - %H:%M:%S')"
-        exit 0
     else
         printf "%s - Error while retrieving data from MARS : exit status ${mars_status}\n" "$(date +'%d/%m/%Y - %H:%M:%S')"
         exit ${mars_status}
@@ -646,7 +645,6 @@ EOF
             fi
             printf "%s - END OF JOB\n" "$(date +'%d/%m/%Y - %H:%M:%S')"
             exit 1
-	fi  
         else
             echo "$(date +'%d/%m/%Y - %H:%M:%S') - Data extraction done, data copied to the ${DST_PATH}"
             DST_PATH="${SERVER_USER}@${SERVER_ADDRESS}:${SERVER_DATA_DIR}"
