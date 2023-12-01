@@ -596,7 +596,6 @@ EOF
     mars_status=$?
     if [ ${mars_status} == 0 ]; then
         printf "%s - Getting data from mars - DONE\n" "$(date +'%d/%m/%Y - %H:%M:%S')"
-        exit 0
     else
         printf "%s - Error while retrieving data from MARS : exit status ${mars_status}\n" "$(date +'%d/%m/%Y - %H:%M:%S')"
         exit ${mars_status}
