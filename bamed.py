@@ -529,15 +529,15 @@ class file_config:
 # ###############################################################################
 
 def print_header_in_terminal() -> None:
-    print("╔════════════════════════════════════════════════╗")
-    print("║   ╱▔▔▔▔▔╲                                      ║")
-    print("║  ▕╋╋╋╋╋╋╋▏    WELCOME                          ║")
-    print("║   ╲╳╳╳╳╳╱            TO                        ║")
-    print("║    ╲╋╋╋╱               THE                     ║")
-    print("║ ~~  ╲▂╱  ~~~~~~~~~~        BAMED               ║")
-    print("║~~~~~▕▅▏~~~~~~~~~               SIMULATION      ║")
-    print("║ ~~~~~~~~~~~~                                   ║")
-    print("╚════════════════════════════════════════════════╝")
+    LOGGER.info("╔════════════════════════════════════════════════╗")
+    LOGGER.info("║   ╱▔▔▔▔▔╲                                      ║")
+    LOGGER.info("║  ▕╋╋╋╋╋╋╋▏    WELCOME                          ║")
+    LOGGER.info("║   ╲╳╳╳╳╳╱            TO                        ║")
+    LOGGER.info("║    ╲╋╋╋╱               THE                     ║")
+    LOGGER.info("║ ~~  ╲▂╱  ~~~~~~~~~~        BAMED               ║")
+    LOGGER.info("║~~~~~▕▅▏~~~~~~~~~               SIMULATION      ║")
+    LOGGER.info("║ ~~~~~~~~~~~~                                   ║")
+    LOGGER.info("╚════════════════════════════════════════════════╝")
 
 
 def write_header_in_file(filepath: str) -> None:
@@ -570,7 +570,6 @@ def start_log(log_filepath: str, shell_option: bool=False) -> logging.Logger:
     log_handlers = []
     if shell_option==True:
         log_handlers.append(logging.StreamHandler())
-        print_header_in_terminal()
     log_handlers.append(logging.FileHandler(log_filepath))
     write_header_in_file(log_filepath)
     logging.basicConfig(format="%(asctime)s   [%(levelname)s]   %(message)s",
@@ -651,6 +650,8 @@ if __name__=="__main__":
     global LOGGER, LOG_FILEPATH
     LOG_FILEPATH = simulation_obj.work_dir+"/bamed-simulation.log"
     LOGGER = start_log(LOG_FILEPATH, args.shell_log)
+    if args.shell_log==True:
+        print_header_in_terminal()
 
     status = simulation_obj.verify()
     if status!=0:
