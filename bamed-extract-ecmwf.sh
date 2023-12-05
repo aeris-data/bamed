@@ -647,7 +647,7 @@ EOF
             exit 1
         else
             echo "$(date +'%d/%m/%Y - %H:%M:%S') - Data extraction done, data copied to the ${DST_PATH}"
-            DST_PATH="${SERVER_USER}@${SERVER_ADDRESS}:${SERVER_DATA_DIR}"
+            DST_PATH="${SERVER_USER}@${SERVER_ADDRESS}:${SERVER_WORKING_DIR}"
             if [ ${LAUNCH_SIMULATION} == true ]; then
                 cmd="mkdir -p ${SERVER_WORKING_DIR}"
                 ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=5 "${SERVER_USER}@${SERVER_ADDRESS}" ${cmd}
