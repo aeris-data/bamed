@@ -4,20 +4,25 @@ BAMED - Boundary Layer Pressurized Balloons trajectory simulation
 
 BAMED is a Fortran based numeric tool that allows to simulate Boundary Layer Pressurized Balloons (BLPB) trajectories based on the given meteorological conditions. The model allows simulating balloon path from a given launch site (geographical coordinates) on the given date and time of the launch. The tool needs ECMWF meteorological data (wind, temperature, humidity, precipitation and surface pressure) as input data.
 
+![](balloon.jpg)  |  ![](balloon_map.jpg)
+
 ## Requirements
 The BAMED tool is containerized into a Singularity container so one must have Singularity installed on the host system intended for simulations.
 
 ## Installation
-1. `git clone https://github.com/aeris-data/bamed.git`
-2. `sudo singularity build ./bamed.sif ./bamed-container.def`
-The `singularity build` command will build the container `bamed.sif` from its definition file, using the source files got from the git repo; so for the build it is important to call the command from the git repo directory that one has made.
+```
+git clone https://github.com/aeris-data/bamed.git
+sudo singularity build ./bamed-image.sif ./bamed-container.def
+```
 
-⚠️ ***The build requires either sudo rights or being able to use --fakeroot option (in a case of a multiuser server).*** 
+The `singularity build` command will build the container `bamed-image.sif` from its definition file, using the source files got from the git repo; so for the build it is important to call the command from the git repo directory that one has made.
+
+⚠️ ***The build requires either sudo rights or being able to use `--fakeroot` option (in a case of a multi-user server).*** 
 
 Afterwards, the sif image can be placed anywhere (even on another system) independently of the source files. To run the image no sudo rights are required.
 
 ## Usage
-The main script to launch is bamed.py which needs the input configuration file user-config.xml (which can be renamed, the name is not important). The Python script handles the launch combinations, writes input files for the Fortran executable and post-process simulation results. The main usage is 
+The main script to launch is `bamed.py` which needs the input configuration file `user-config.xml` (which can be renamed, the name is not important). The Python script handles the launch combinations, writes input files for the Fortran executable and post-process simulation results. The main usage is 
 ```
 python3 bamed.py --config user-config.xml [--shell-log]
 ```
@@ -27,16 +32,13 @@ python3 bamed.py --config user-config.xml [--shell-log]
 The outputs of the simulation are : baloons estimated positions' coordinates in ASCII, netCDF and KML format + PNG map plot of the estimated trajectories. More details about input/output and folder structure are in the manual `SEDOO-AERIS-DT-003-MAG_BAMED_ATBD.pdf`.
 
 There are two possible ways to launch the simulation inside the Singularity container:
-- interactive mode (run a shell within a container, then launch the command within the shell of the container)
-
-```
-$ singularity exec bamed-image.sif python3 bamed.py --config user-config.xml [--shell-log]
-```
-
 - one-line command (run a command within a container, wait for the end of simulation to regain control of the shell)
-
 ```
-$ singularity shell bamed-image.sif
+$ singularity exec [--bind path1,path2] bamed-image.sif python3 bamed.py --config user-config.xml [--shell-log]
+```
+- interactive mode (run a shell within a container, then launch the command within the shell of the container)
+```
+$ singularity shell [--bind path1,path2] bamed-image.sif
 Singularity> python3 bamed.py --config user-config.xml [--shell-log]
 ```
 
