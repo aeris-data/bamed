@@ -17,7 +17,10 @@ The `singularity build` command will build the container `bamed.sif` from its de
 Afterwards, the sif image can be placed anywhere (even on another system) independently of the source files. To run the image no sudo rights are required.
 
 ## Usage
-The main script to launch is bamed.py which needs the input configuration file user-config.xml (which can be renamed, the name is not important). The Python script handles the launch combinations, writes input files for the Fortran executable and post-process simulation results. The main usage is `python3 bamed.py --config user-config.xml [--shell-log]`. 
+The main script to launch is bamed.py which needs the input configuration file user-config.xml (which can be renamed, the name is not important). The Python script handles the launch combinations, writes input files for the Fortran executable and post-process simulation results. The main usage is 
+```
+python3 bamed.py --config user-config.xml [--shell-log]
+```
 
 ⚠️ ***The script must be launched inside the Singularity container.*** 
 
