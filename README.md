@@ -4,7 +4,7 @@ BAMED - Boundary Layer Pressurized Balloons trajectory simulation
 
 BAMED is a Fortran based numeric tool that allows to simulate Boundary Layer Pressurized Balloons (BLPB) trajectories based on the given meteorological conditions. The model allows simulating balloon path from a given launch site (geographical coordinates) on the given date and time of the launch. The tool needs ECMWF meteorological data (wind, temperature, humidity, precipitation and surface pressure) as input data.
 
-![](balloon.jpg)  |  ![](balloon_map.jpg)
+![](balloon.jpg) ![](balloon_map.jpg)
 
 ## Requirements
 The BAMED tool is containerized into a Singularity container so one must have Singularity installed on the host system intended for simulations.
@@ -39,6 +39,7 @@ $ singularity exec [--bind path1,path2] bamed-image.sif python3 bamed.py --confi
 - interactive mode (run a shell within a container, then launch the command within the shell of the container)
 ```
 $ singularity shell [--bind path1,path2] bamed-image.sif
+Singularity>
 Singularity> python3 bamed.py --config user-config.xml [--shell-log]
 ```
 
