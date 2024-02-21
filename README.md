@@ -26,11 +26,15 @@ python3 bamed.py --config user-config.xml [--shell-log]
 
 The outputs of the simulation are : baloons estimated positions' coordinates in ASCII, netCDF and KML format + PNG map plot of the estimated trajectories. More details about input/output and folder structure are in the manual `SEDOO-AERIS-DT-003-MAG_BAMED_ATBD.pdf`.
 
-Launch in the non-interactive mode (run a command within a container, wait for the end of simulation to regain control of the shell):
+There are two possible ways to launch the simulation inside the Singularity container:
+- interactive mode (run a shell within a container, then launch the command within the shell of the container)
+
 ```
 $ singularity exec bamed-image.sif python3 bamed.py --config user-config.xml [--shell-log]
 ```
-Launch in the interactive mode (run a shell within a container, then launch the command within the shell of the container):
+
+- one-line command (run a command within a container, wait for the end of simulation to regain control of the shell)
+
 ```
 $ singularity shell bamed-image.sif
 Singularity> python3 bamed.py --config user-config.xml [--shell-log]
