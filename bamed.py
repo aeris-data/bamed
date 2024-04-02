@@ -553,25 +553,42 @@ def write_header_in_file(filepath: str) -> None:
         file.write("╚════════════════════════════════════════════════╝\n")
 
 
-def start_log(log_filepath: str, shell_option: bool=False) -> logging.Logger:
-    """
+# def start_log(log_filepath: str, shell_option: bool=False) -> logging.Logger:
+#     """
+#     Create and initiates a Python logger object for an easy handling of the
+#     log information and printing
+
+#     Args:
+#         log_filepath (str): filepath to the log file, handled by the main function.
+
+#         shell_option (bool, optional): if True, displays all the log information in the shell
+#                                        in addition to the txt file. Defaults to False.
+
+#     Returns:
+#         logging.Logger: logger object
+#     """
+#     log_handlers = []
+#     if shell_option==True:
+#         log_handlers.append(logging.StreamHandler())
+#     log_handlers.append(logging.FileHandler(log_filepath))
+#     write_header_in_file(log_filepath)
+#     logging.basicConfig(format="%(asctime)s   [%(levelname)s]   %(message)s",
+#                         datefmt="%d/%m/%Y %H:%M:%S",
+#                         handlers=log_handlers)
+#     logger = logging.getLogger('my_log')
+#     logger.setLevel(logging.DEBUG)
+#     return logger
+
+def start_log() -> logging.Logger:
+        """
     Create and initiates a Python logger object for an easy handling of the
     log information and printing
-
-    Args:
-        log_filepath (str): filepath to the log file, handled by the main function.
-
-        shell_option (bool, optional): if True, displays all the log information in the shell
-                                       in addition to the txt file. Defaults to False.
 
     Returns:
         logging.Logger: logger object
     """
     log_handlers = []
-    if shell_option==True:
-        log_handlers.append(logging.StreamHandler())
-    log_handlers.append(logging.FileHandler(log_filepath))
-    write_header_in_file(log_filepath)
+    log_handlers.append(logging.StreamHandler())
     logging.basicConfig(format="%(asctime)s   [%(levelname)s]   %(message)s",
                         datefmt="%d/%m/%Y %H:%M:%S",
                         handlers=log_handlers)
@@ -639,7 +656,6 @@ if __name__=="__main__":
     parser = argparse.ArgumentParser(description="This Python script allows to manage multiple BAMED simulations based on the user configuration XML file",
                                      formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument("-bc","--config", type=str, help="Filepath to the xml configuration file (mandatory)")
-    parser.add_argument("--shell-log", action="store_true", help="Provide this argument if you want to display log messages on the screen in addition to the log file")
     args = parser.parse_args()
     config_xmlpath = args.config
 
@@ -647,11 +663,15 @@ if __name__=="__main__":
 
     simulation_obj.verify_workdir()
 
+    # global LOGGER, LOG_FILEPATH
+    # LOG_FILEPATH = simulation_obj.work_dir+"/bamed-simulation.log"
+    # LOGGER = start_log(LOG_FILEPATH, args.shell_log)
+    # if args.shell_log==True:
+    #     print_header_in_terminal()
+    
     global LOGGER, LOG_FILEPATH
-    LOG_FILEPATH = simulation_obj.work_dir+"/bamed-simulation.log"
-    LOGGER = start_log(LOG_FILEPATH, args.shell_log)
-    if args.shell_log==True:
-        print_header_in_terminal()
+    LOGGER = start_log()
+    print_header_in_terminal()
 
     status = simulation_obj.verify()
     if status!=0:
