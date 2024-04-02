@@ -580,7 +580,7 @@ def write_header_in_file(filepath: str) -> None:
 #     return logger
 
 def start_log() -> logging.Logger:
-        """
+    """
     Create and initiates a Python logger object for an easy handling of the
     log information and printing
 
