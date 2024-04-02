@@ -371,7 +371,7 @@ function write_simu_job_script(){
 #SBATCH --chdir=${SERVER_WORKING_DIR}
 #SBATCH --time=1:0:0
 module load singularity/3.10.2
-singularity exec --bind ${SERVER_DATA_DIR} ${SING_CONTAINER_PATH} python3 ${PYTHON_PATH} -bc ${SERVER_WORKING_DIR}/$(basename ${XML_FILEPATH}) --shell-log
+singularity exec --bind ${SERVER_DATA_DIR} ${SING_CONTAINER_PATH} python3 ${PYTHON_PATH} -bc ${SERVER_WORKING_DIR}/$(basename ${XML_FILEPATH})
 EOF
     echo ${JOB_FILEPATH}
 }
