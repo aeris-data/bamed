@@ -69,9 +69,6 @@ set -e
 
 SCRIPT_NAME=$(basename "$0")
 
-SING_CONTAINER_PATH="/home/user/BAMED/src/bamed.sif"
-PYTHON_PATH="/home/user/BAMED/src/bamed.py"
-
 # +----------------------------------+
 # | Aux functions                    |
 # +----------------------------------+
@@ -371,7 +368,7 @@ function write_simu_job_script(){
 #SBATCH --chdir=${SERVER_WORKING_DIR}
 #SBATCH --time=1:0:0
 module load singularity/3.10.2
-singularity exec --bind ${SERVER_DATA_DIR} ${SING_CONTAINER_PATH} python3 ${PYTHON_PATH} -bc ${SERVER_WORKING_DIR}/$(basename ${XML_FILEPATH})
+singularity exec --bind ${SERVER_DATA_DIR} ${SINGULARITY_CONTAINER_REMOTE_PATH} python3 ${PYTHON_REMOTE_PATH} -bc ${SERVER_WORKING_DIR}/$(basename ${XML_FILEPATH})
 EOF
     echo ${JOB_FILEPATH}
 }
