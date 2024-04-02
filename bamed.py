@@ -648,14 +648,14 @@ if __name__=="__main__":
 
     Args:
         -bc         : Filepath to the xml configuration file (mandatory)
-        --shell-log : Provide this argument if you want to display log messages on the screen in addition to the log file
     """
 
     import argparse
     
     parser = argparse.ArgumentParser(description="This Python script allows to manage multiple BAMED simulations based on the user configuration XML file",
                                      formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument("-bc","--config", type=str, help="Filepath to the xml configuration file (mandatory)")
+    parser.add_argument("-bc","--config", type=str, help="Filepath to the xml configuration file", required=True)
+    
     args = parser.parse_args()
     config_xmlpath = args.config
 
