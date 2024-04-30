@@ -24,7 +24,7 @@ Afterwards, the sif image can be placed anywhere (even on another system) indepe
 ## Usage
 The main script to launch is `bamed.py` which needs the input configuration file `user-config.xml` (which can be renamed, the name is not important). The Python script handles the launch combinations, writes input files for the Fortran executable and post-process simulation results. The main usage is 
 ```
-python3 bamed.py --config user-config.xml [--shell-log]
+$ python3 bamed.py --config user-config.xml [--shell-log]
 ```
 
 ⚠️ ***The script must be launched inside the Singularity container.*** 
@@ -66,4 +66,8 @@ This will bind `/opt` on the host to `/opt` in the container and `/data` on the 
 ## Input meteorological data extraction
 The input data for the simulations is meteorological data : wind, temperature, humidity, precipitation and logarithm of surface pressure, coming from the ECMWF database. To extract and prepare the data in the correct format, the script `bamed-extract-ecmwf.sh` should be used. The script must be launched on the ECMWF MARS server (ecs, hpc or other). The data extraction was tested with a member-state user account. Other more public accounts might customize the script based on the MARS services or APIs available for their type of user.
 
-The bash script can either extract the data and prepare it for the simulation, or it can extract the data, transfer it to the one's distant working server and automatically launch simulations on this server when the data extraction is finished. One must of course has the Singularity container and BAMED tool scripts on this working server. The input for this script is the configuration file ecmwf-user-parameters.conf, where the simulation and data parameters are indicated by the user. The main usage is `bamed-extract-ecmwf.sh --config ecmwf-user-parameters.conf`. In a case of a member-state user account, it is strongly advised to launch extractions as a SLURM batch job via `sbatch --wrap="bamed-extract-ecmwf.sh --config ecmwf-user-parameters.conf"` syntax.
+The bash script can either extract the data and prepare it for the simulation, or it can extract the data, transfer it to the one's distant working server and automatically launch simulations on this server when the data extraction is finished. One must of course has the Singularity container and BAMED tool scripts on this working server. The input for this script is the configuration file ecmwf-user-parameters.conf, where the simulation and data parameters are indicated by the user. The main usage is :
+```
+bamed-extract-ecmwf.sh --config ecmwf-user-parameters.conf
+```
+In a case of a member-state user account, it is strongly advised to launch extractions as a SLURM batch job via sbatch or srun commands.
