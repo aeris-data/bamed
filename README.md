@@ -68,6 +68,6 @@ The input data for the simulations is meteorological data : wind, temperature, h
 
 The bash script can either extract the data and prepare it for the simulation, or it can extract the data, transfer it to the one's distant working server and automatically launch simulations on this server when the data extraction is finished. One must of course has the Singularity container and BAMED tool scripts on this working server. The input for this script is the configuration file ecmwf-user-parameters.conf, where the simulation and data parameters are indicated by the user. The main usage is :
 ```
-bamed-extract-ecmwf.sh --config ecmwf-user-parameters.conf
+$ ./bamed-extract-ecmwf.sh --config ecmwf-user-parameters.conf
 ```
 In a case of a member-state user account, it is strongly advised to launch extractions as a SLURM batch job via sbatch or srun commands.
