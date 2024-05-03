@@ -73,6 +73,27 @@ SCRIPT_NAME=$(basename "$0")
 # | Aux functions                    |
 # +----------------------------------+
 
+function info() {
+    msg=$1
+    line_number=${BASH_LINENO[0]}
+    calling_func=${FUNCNAME[1]}
+    echo "$(date +'%d/%m/%Y %H:%M:%S') - [INFO]       (${calling_func}:${line_number}) ${msg}"
+}
+
+function warning() {
+    msg=$1
+    line_number=${BASH_LINENO[0]}
+    calling_func=${FUNCNAME[1]}
+    echo "$(date +'%d/%m/%Y %H:%M:%S') - [WARNING]    (${calling_func}:${line_number}) ${msg}"
+}
+
+function error() {
+    msg=$1
+    line_number=${BASH_LINENO[0]}
+    calling_func=${FUNCNAME[1]}
+    echo "$(date +'%d/%m/%Y %H:%M:%S') - [ERROR]      (${calling_func}:${line_number}) ${msg}"
+}
+
 function help() {
     bold=$(tput bold)
     normal=$(tput sgr0)
@@ -192,30 +213,53 @@ function help() {
 function check_args(){
     local exit_status=0
     # ====================================================================================================================================================================
-    if [ -z ${ID_NAME} ]; then printf "%s - ERROR : ID_NAME variable is either empty or not set at all\n" "$(date +'%d/%m/%Y - %H:%M:%S')"; exit_status=1; fi
-    if [ -z ${N_DAYS} ]; then printf "%s - ERROR : N_DAYS variable is either empty or not set at all\n" "$(date +'%d/%m/%Y - %H:%M:%S')"; exit_status=1; fi
-    if [ -z ${GRID_RESOLUTION} ]; then printf "%s - ERROR : GRID_RESOLUTION variable is either empty or not set at all\n" "$(date +'%d/%m/%Y - %H:%M:%S')"; exit_status=1; fi
-    if [ -z ${LAT_MIN} ]; then printf "%s - ERROR : LAT_MIN variable is either empty or not set at all\n" "$(date +'%d/%m/%Y - %H:%M:%S')"; exit_status=1; fi
-    if [ -z ${LAT_MAX} ]; then printf "%s - ERROR : LAT_MAX variable is either empty or not set at all\n" "$(date +'%d/%m/%Y - %H:%M:%S')"; exit_status=1; fi
-    if [ -z ${LON_MIN} ]; then printf "%s - ERROR : LON_MIN variable is either empty or not set at all\n" "$(date +'%d/%m/%Y - %H:%M:%S')"; exit_status=1; fi
-    if [ -z ${LON_MAX} ]; then printf "%s - ERROR : LON_MAX variable is either empty or not set at all\n" "$(date +'%d/%m/%Y - %H:%M:%S')"; exit_status=1; fi
-    if [ -z ${WORKING_DIR} ]; then printf "%s - ERROR : WORKING_DIR variable is either empty or not set at all\n" "$(date +'%d/%m/%Y - %H:%M:%S')"; exit_status=1; fi
-    if [ -z ${DATA_DIR} ]; then printf "%s - ERROR : MARS_DATA_DIR variable is either empty or not set at all\n" "$(date +'%d/%m/%Y - %H:%M:%S')"; exit_status=1; fi
-    if [ -z ${SERVER_USER} ] || [ -z ${SERVER_ADDRESS} ] || [ -z ${SERVER_DATA_DIR} ]; then printf "%s - WARNING : information about destination server for the extracted data is not set or empty, there will be no data transfer, you will find it directly in the ${DATA_DIR} on the MARS server\n" "$(date +'%d/%m/%Y - %H:%M:%S')"; fi
+    if [ -z ${ID_NAME} ]; then error "ID_NAME variable is either empty or not set at all"; exit_status=1; fi
+    if [ -z ${N_DAYS} ]; then error "N_DAYS variable is either empty or not set at all"; exit_status=1; fi
+    if [ -z ${GRID_RESOLUTION} ]; then error "GRID_RESOLUTION variable is either empty or not set at all"; exit_status=1; fi
+    if [ -z ${LAT_MIN} ]; then error "LAT_MIN variable is either empty or not set at all"; exit_status=1; fi
+    if [ -z ${LAT_MAX} ]; then error "LAT_MAX variable is either empty or not set at all"; exit_status=1; fi
+    if [ -z ${LON_MIN} ]; then error "LON_MIN variable is either empty or not set at all"; exit_status=1; fi
+    if [ -z ${LON_MAX} ]; then error "LON_MAX variable is either empty or not set at all"; exit_status=1; fi
+    if [ -z ${WORKING_DIR} ]; then error "WORKING_DIR variable is either empty or not set at all"; exit_status=1; fi
+    if [ -z ${DATA_DIR} ]; then error "MARS_DATA_DIR variable is either empty or not set at all"; exit_status=1; fi
+    if [ -z ${SERVER_USER} ] || [ -z ${SERVER_ADDRESS} ] || [ -z ${SERVER_DATA_DIR} ]; then warning "Information about destination server for the extracted data is not set or empty, there will be no data transfer, you will find it directly in the ${DATA_DIR} on the MARS server"; fi
     # ====================================================================================================================================================================
-    if [[ ! -z ${START_DATE} && $(date -d ${START_DATE} +%s) -gt $(date +%s) ]]; then printf "%s - ERROR : START_DATE can not exceed the today date, verify your \
-        value\n" "$(date +'%d/%m/%Y - %H:%M:%S')"; exit_status=1; fi
+    if [[ ! -z ${START_DATE} && $(date -d ${START_DATE} +%s) -gt $(date +%s) ]]; then
+        error "START_DATE can not exceed the today date, verify your value"
+        exit_status=1
+    fi
     # ====================================================================================================================================================================
-    if [[ ! -z ${N_DAYS} && ${N_DAYS} -lt 1 ]]; then printf "%s - ERROR : N_DAYS should be positive >= 1\n" "$(date +'%d/%m/%Y - %H:%M:%S')"; exit_status=1; fi
+    if [[ ! -z ${N_DAYS} && ${N_DAYS} -lt 1 ]]; then error "N_DAYS should be positive >= 1"; exit_status=1; fi
     # ====================================================================================================================================================================
     if [[ ! -z ${LAT_MIN} && ! -z ${LAT_MAX} && ! -z ${LON_MIN} && ! -z ${LON_MAX} && ! -z ${GRID_RESOLUTION} ]]; then
-        if (( $(bc <<< "${LAT_MIN} < -90") || $(bc <<< "${LAT_MAX} > 90") )); then printf "%s - ERROR : latitude has to be in [-90°; +90°] interval\n" "$(date +'%d/%m/%Y - %H:%M:%S')"; exit_status=1; fi
-        if (( $(bc <<< "${LON_MIN} < -180") )); then printf "%s - ERROR : longitude has to be either in [-180°; +180°] or [0°; +360°] interval\n" "$(date +'%d/%m/%Y - %H:%M:%S')"; exit_status=1; fi
-        if (( $(bc <<< "${LON_MIN} > -180") && $(bc <<< "${LON_MIN} < 0") && $(bc <<< "${LON_MAX} > 180") )); then printf "%s - ERROR : longitude has to be either in [-180°; +180°] or [0°; +360°] interval\n" "$(date +'%d/%m/%Y - %H:%M:%S')"; exit_status=1; fi
-        if (( $(bc <<< "${LON_MIN} > 0") && $(bc <<< "${LON_MAX} > 360") )); then printf "%s - ERROR : longitude has to be either in [-180°; +180°] or [0°; +360°] interval\n" "$(date +'%d/%m/%Y - %H:%M:%S')"; exit_status=1; fi
-        if (( $(bc <<< "${LAT_MIN} >= ${LAT_MAX}") )); then printf "%s - ERROR : LAT_MIN has to be less than LAT_MAX\n" "$(date +'%d/%m/%Y - %H:%M:%S')"; exit_status=1; fi
-        if (( $(bc <<< "${LON_MIN} >= ${LON_MAX}") )); then printf "%s - ERROR : LON_MIN has to be less than LON_MAX\n" "$(date +'%d/%m/%Y - %H:%M:%S')"; exit_status=1; fi
-        if (( $(bc <<< "scale=2; (${LAT_MAX}-${LAT_MIN})/${GRID_RESOLUTION} < 2") )); then printf "%s - ERROR : GRID_RESOLUTION is greater or equal to the coverage of your window\n" "$(date +'%d/%m/%Y - %H:%M:%S')"; exit_status=1; fi
+        if (( $(bc <<< "${LAT_MIN} < -90") || $(bc <<< "${LAT_MAX} > 90") )); then
+            error "Latitude has to be in [-90°; +90°] interval"
+            exit_status=1
+        fi
+        if (( $(bc <<< "${LON_MIN} < -180") )); then
+            error "Longitude has to be either in [-180°; +180°] or [0°; +360°] interval"
+            exit_status=1
+        fi
+        if (( $(bc <<< "${LON_MIN} > -180") && $(bc <<< "${LON_MIN} < 0") && $(bc <<< "${LON_MAX} > 180") )); then
+            error "Longitude has to be either in [-180°; +180°] or [0°; +360°] interval"
+            exit_status=1
+        fi
+        if (( $(bc <<< "${LON_MIN} > 0") && $(bc <<< "${LON_MAX} > 360") )); then
+            error "Longitude has to be either in [-180°; +180°] or [0°; +360°] interval"
+            exit_status=1
+        fi
+        if (( $(bc <<< "${LAT_MIN} >= ${LAT_MAX}") )); then
+            error "LAT_MIN has to be less than LAT_MAX"
+            exit_status=1
+        fi
+        if (( $(bc <<< "${LON_MIN} >= ${LON_MAX}") )); then
+            error "LON_MIN has to be less than LON_MAX"
+            exit_status=1
+        fi
+        if (( $(bc <<< "scale=2; (${LAT_MAX}-${LAT_MIN})/${GRID_RESOLUTION} < 2") )); then
+            error "GRID_RESOLUTION is greater or equal to the coverage of your window"
+            exit_status=1
+        fi
     fi
     return ${exit_status}
 }
@@ -239,9 +283,8 @@ function check_the_date(){
     if [[ ${START_DATE} == "" ]]; then
         START_DATE=$(date +'%Y%m%d')
         if [[ ${N_DAYS} -gt 10 ]]; then
-            printf "%s - WARNING : Your number of days is > 10, but the data can only be \
-            extracted up to 10 days from TODAY. Extracting data up to your start date + 10 days.\n" \
-            "$(date +'%d/%m/%Y - %H:%M:%S')"
+            warning "Your number of days is > 10, but the data can only be \
+            extracted up to 10 days from TODAY. Extracting data up to your start date + 10 days."
             N_DAYS=10
         fi
         DATA_TYPE="fc"
@@ -249,9 +292,8 @@ function check_the_date(){
     # if date is set and is TODAY
     elif [[ ${START_DATE} == $(date +%Y%m%d) ]]; then
         if [[ ${N_DAYS} -gt 10 ]]; then
-            printf "%s - WARNING : Your number of days is > 10, but the data can only be \
-                extracted up to 10 days from TODAY. Extracting data up to your start date + 10 days.\n" \
-                "$(date +'%d/%m/%Y - %H:%M:%S')"
+            warning "Your number of days is > 10, but the data can only be \
+                extracted up to 10 days from TODAY. Extracting data up to your start date + 10 days."
             N_DAYS=10
         fi
         DATA_TYPE="fc"
@@ -272,9 +314,8 @@ function check_the_date(){
             END_DATE=$(date -d "${START_DATE}+${n_days} days" +%Y%m%d)
         fi
         if [[ ${end_date} -gt ${end_fc_date} ]]; then
-            printf "%s - WARNING : Your end date exceeds TODAY+10 days, the data can only be \
-                extracted up to 10 days from TODAY. Extracting data from your start date and up to 10 days from TODAY.\n" \
-                "$(date +'%d/%m/%Y - %H:%M:%S')"
+            warning "Your end date exceeds TODAY+10 days, the data can only be \
+                extracted up to 10 days from TODAY. Extracting data from your start date and up to 10 days from TODAY."
             DATA_TYPE="an+fc"
             END_DATE=$(date -d "$(date +'%Y%m%d')+10 days" +%Y%m%d)
         fi
@@ -373,16 +414,15 @@ EOF
     echo ${JOB_FILEPATH}
 }
 
-# ====================================================================================================
-
-# +----------------------------------+
-# | Main function                    |
-# +----------------------------------+
-
-function main(){
-
-    ssh-copy-id -i ~/.ssh/id_rsa.pub ${SERVER_USER}@${SERVER_ADDRESS}
-
+function prepare_dates(){
+    # --------------------------------------------------------
+    # | Check_the_date function determines whether analysis  |
+    # | or forecast data should be requested based on the    |
+    # | time period chosen by the user. This period is then  |
+    # | extended by 1 day in the beginning and in the end    |
+    # | in order to allow a more precise inteprolation by    |
+    # | the BAMED simulation model.                          |
+    # --------------------------------------------------------
     check_the_date
     COPY_START_DATE=${START_DATE}
     COPY_END_DATE=${END_DATE}
@@ -394,19 +434,38 @@ function main(){
     DATA_START_DATE=${START_DATE}
     DATA_END_DATE=${END_DATE}
     DATA_N_DAYS=${N_DAYS}
-    local LAUNCH_WORKING_DIR="${WORKING_DIR}/${ID_NAME}/${COPY_START_DATE}_${COPY_END_DATE}"
+}
+
+function prepare_dirs(){
+    # ----------------------------------------------------------------------
+    # | This function prepares working and data directories                |
+    # | on the MARS server. The current simulation working                 |
+    # | directory will be:                                                 |
+    # | root_wdir_from_the_configuration_file/id_name/start_date_end_date  |
+    # | The data directory for the current simulation remains the same,    |
+    # | as indicated in the configuration file.                            |
+    # ----------------------------------------------------------------------
+    LAUNCH_WORKING_DIR="${WORKING_DIR}/${ID_NAME}/${COPY_START_DATE}_${COPY_END_DATE}"
+    SERVER_WORKING_DIR="${SERVER_WORKING_DIR}/${ID_NAME}/${COPY_START_DATE}_${COPY_END_DATE}"
     if [ ! -d ${LAUNCH_WORKING_DIR} ]; then
         mkdir -p ${LAUNCH_WORKING_DIR}
     fi
-    DATA_DIR="${DATA_DIR}/${ID_NAME}/${COPY_START_DATE}_${COPY_END_DATE}"
+    DATA_DIR="${DATA_DIR}/${ID_NAME}"
     if [ ! -d ${DATA_DIR} ]; then
         mkdir -p ${DATA_DIR}
     fi
+}
 
+function prepare_bamed_simulation_config(){
+    # ---------------------------------------------------------
+    # | This function prepares the xml configuration file for |
+    # | the current BAMED simulation and defines certain      |
+    # | parameters needed for the data extraction and MARS    |
+    # | requests.                                             |
+    # ---------------------------------------------------------
     ID_NAME="${ID_NAME}"
     GRID_RES="${GRID_RESOLUTION}"
     AREA="${LAT_MAX}/${LON_MIN}/${LAT_MIN}/${LON_MAX}"
-
     if [[ ${DATA_TYPE} == "an" ]]; then
         SIMU_CONFIG_FILEPATH=$(write_simulaiton_config_file 3)
         FC_HOURS=""
@@ -433,13 +492,25 @@ function main(){
         FC_HOURS=$((${FC_N_DAYS}*24))
         SIMU_CONFIG_FILEPATH=$(write_simulaiton_config_file 3)
     fi
+}
 
+function prepare_remote_job_script(){
+    # ----------------------------------------------------------------
+    # This function prepares the script that will be launched        |
+    # with sbatch on the remote server to run the simulation itself. |
+    # ----------------------------------------------------------------
     REMOTE_JOB_FILEPATH=$(write_simu_job_script ${SIMU_CONFIG_FILEPATH})
+}
 
+# function check_for_existing_grib_files(){
+# }
+
+function extract_ecmwf_data(){
+    _tmp_data_dir="${DATA_DIR}/${START_DATE}_${END_DATE}"
+    mkdir -p ${_tmp_data_dir}
     export MARS_MULTITARGET_STRICT_FORMAT=1
     module load ecmwf-toolbox
-    printf "%s - Requesting data on mars\n" "$(date +'%d/%m/%Y - %H:%M:%S')"
-
+    info "Requesting data on mars"
     REQUEST_FILEPATH="${LAUNCH_WORKING_DIR}/data.req"
     if [[ ${DATA_TYPE} == "an" ]]; then
         cat > ${REQUEST_FILEPATH} <<EOF
@@ -456,15 +527,15 @@ retrieve,
     date=${DATA_START_DATE}/to/${DATA_END_DATE},
     time=00/06/12/18,
     param=130/131/132/133/135,
-    target="${DATA_DIR}/[date]_[time]_[step].grib"
+    target="${_tmp_data_dir}/[date]_[time]_[step].grib"
 retrieve,
     levelist=1,
     param=152,
-    target="${DATA_DIR}/[date]_[time]_[step].grib"
+    target="${_tmp_data_dir}/[date]_[time]_[step].grib"
 retrieve,
     levtype=SFC,
     param=228,
-    target="${DATA_DIR}/[date]_[time]_[step].grib"
+    target="${_tmp_data_dir}/[date]_[time]_[step].grib"
 retrieve,
     class=OD,
     stream=OPER,
@@ -478,15 +549,15 @@ retrieve,
     step=3/9,
     grid=${GRID_RES}/${GRID_RES},
     area=${AREA},
-    target="${DATA_DIR}/[date]_[time]_[step].grib"
+    target="${_tmp_data_dir}/[date]_[time]_[step].grib"
 retrieve,
     levelist=1,
     param=152,
-    target="${DATA_DIR}/[date]_[time]_[step].grib"
+    target="${_tmp_data_dir}/[date]_[time]_[step].grib"
 retrieve,
     levtype=SFC,
     param=228,
-    target="${DATA_DIR}/[date]_[time]_[step].grib"
+    target="${_tmp_data_dir}/[date]_[time]_[step].grib"
 EOF
     fi
     if [[ ${DATA_TYPE} == "fc" ]]; then
@@ -505,15 +576,15 @@ retrieve,
     time=00,
     step=${FC_HOURS},
     param=130/131/132/133/135,
-    target="${DATA_DIR}/[date]_[time]_[step].grib"
+    target="${_tmp_data_dir}/[date]_[time]_[step].grib"
 retrieve,
     levelist=1,
     param=152,
-    target="${DATA_DIR}/[date]_[time]_[step].grib"
+    target="${_tmp_data_dir}/[date]_[time]_[step].grib"
 retrieve,
     levtype=SFC,
     param=228,
-    target="${DATA_DIR}/[date]_[time]_[step].grib"
+    target="${_tmp_data_dir}/[date]_[time]_[step].grib"
 EOF
     fi
     if [[ ${DATA_TYPE} == "an+fc" ]]; then
@@ -531,15 +602,15 @@ retrieve,
     date=${DATA_START_DATE}/to/${END_AN_DATE},
     time=00/06/12/18,
     param=130/131/132/133/135,
-    target="${DATA_DIR}/[date]_[time]_[step].grib"
+    target="${_tmp_data_dir}/[date]_[time]_[step].grib"
 retrieve,
     levelist=1,
     param=152,
-    target="${DATA_DIR}/[date]_[time]_[step].grib"
+    target="${_tmp_data_dir}/[date]_[time]_[step].grib"
 retrieve,
     levtype=SFC,
     param=228,
-    target="${DATA_DIR}/[date]_[time]_[step].grib"
+    target="${_tmp_data_dir}/[date]_[time]_[step].grib"
 retrieve,
     class=OD,
     stream=OPER,
@@ -554,15 +625,15 @@ retrieve,
     step=3/9,
     grid=${GRID_RES}/${GRID_RES},
     area=${AREA},
-    target="${DATA_DIR}/[date]_[time]_[step].grib"
+    target="${_tmp_data_dir}/[date]_[time]_[step].grib"
 retrieve,
     levelist=1,
     param=152,
-    target="${DATA_DIR}/[date]_[time]_[step].grib"
+    target="${_tmp_data_dir}/[date]_[time]_[step].grib"
 retrieve,
     levtype=SFC,
     param=228,
-    target="${DATA_DIR}/[date]_[time]_[step].grib"
+    target="${_tmp_data_dir}/[date]_[time]_[step].grib"
 retrieve,
     class=OD,
     expver=1,
@@ -577,50 +648,61 @@ retrieve,
     time=00,
     step=0/to/${FC_HOURS}/by/3,
     param=130/131/132/133/135,
-    target="${DATA_DIR}/[date]_[time]_[step].grib"
+    target="${_tmp_data_dir}/[date]_[time]_[step].grib"
 retrieve,
     levelist=1,
     param=152,
-    target="${DATA_DIR}/[date]_[time]_[step].grib"
+    target="${_tmp_data_dir}/[date]_[time]_[step].grib"
 retrieve,
     levtype=SFC,
     param=228,
-    target="${DATA_DIR}/[date]_[time]_[step].grib"
+    target="${_tmp_data_dir}/[date]_[time]_[step].grib"
 EOF
     fi
 
     mars ${REQUEST_FILEPATH}
     mars_status=$?
+    # mars_status=0
     if [ ${mars_status} == 0 ]; then
-        printf "%s - Getting data from mars - DONE\n" "$(date +'%d/%m/%Y - %H:%M:%S')"
+        info "Getting data from mars - DONE"
     else
-        printf "%s - Error while retrieving data from MARS : exit status ${mars_status}\n" "$(date +'%d/%m/%Y - %H:%M:%S')"
+        error "Error while retrieving data from MARS : exit status ${mars_status}"
         exit ${mars_status}
     fi
+}
 
-    for RESULT_GRIB_FILE in ${DATA_DIR}/????????_????_*.grib; do
-        FILENAME=$(basename ${RESULT_GRIB_FILE} ".grib")
-        date_part=$(echo "${FILENAME}" | cut -d'_' -f1)
-        time_part=$(echo "${FILENAME}" | cut -d'_' -f2)
-        fcstep_part=$(echo "${FILENAME}" | cut -d'_' -f3)
-        new_name=$(date --date "${date_part} ${time_part} + ${fcstep_part} hours" +"%y%m%d%H")
-        mv ${RESULT_GRIB_FILE} ${DATA_DIR}/${new_name}.grib
-    done
+function rename_grib_files(){
+    _files_to_rename=($(find ${_tmp_data_dir} -name "????????_????_*.grib"))
+    if [ -z ${_files_to_rename} ]; then
+        warning "No files to rename, continuing with the script"
+    else
+        for RESULT_GRIB_FILE in ${_files_to_rename[@]}; do
+            FILENAME=$(basename ${RESULT_GRIB_FILE} ".grib")
+            date_part=$(echo "${FILENAME}" | cut -d'_' -f1)
+            time_part=$(echo "${FILENAME}" | cut -d'_' -f2)
+            fcstep_part=$(echo "${FILENAME}" | cut -d'_' -f3)
+            new_name=$(date --date "${date_part} ${time_part} + ${fcstep_part} hours" +"%y%m%d%H")
+            mv ${RESULT_GRIB_FILE} ${_tmp_data_dir}/${new_name}.grib
+        done
+    fi
+}
 
+function transfer_files_to_remote_server(){
     if [ -z ${SERVER_USER} ] || [ -z ${SERVER_ADDRESS} ] || [ -z ${SERVER_DATA_DIR} ]; then
-        printf "%s - No distant server info was configured, thus no file transfer nor simulation were performed, you can find your data in ${DATA_DIR}\n" "$(date +'%d/%m/%Y - %H:%M:%S')"
-        printf "%s - END OF JOB\n" "$(date +'%d/%m/%Y - %H:%M:%S')" 
+        info "No distant server info was configured, thus no file transfer nor simulation were performed, you can find your data in ${DATA_DIR}"
+        info "END OF JOB"
         exit 0
     else
         cmd="mkdir -p ${SERVER_DATA_DIR}"
         ssh -o ServerAliveInterval=10 -o ServerAliveCountMax=5 "${SERVER_USER}@${SERVER_ADDRESS}" ${cmd}
-        TOTAL_FILES=$(ls ${DATA_DIR}/*.grib | wc -l)
+        TOTAL_FILES=$(ls ${_tmp_data_dir}/*.grib | wc -l)
         TRANSFERRED_FILES=0
-        printf "%s - Copying data to %s\n" "$(date +'%d/%m/%Y - %H:%M:%S')" "${SERVER_USER}@${SERVER_ADDRESS}:${SERVER_DATA_DIR}/"
-        for RESULT_GRIB_FILE in ${DATA_DIR}/*.grib; do
+        DST_PATH="${SERVER_USER}@${SERVER_ADDRESS}:${SERVER_DATA_DIR}/"
+        info "Copying data to ${DST_PATH}/"
+        files_to_copy=($(find ${_tmp_data_dir} -iname "*.grib"))
+        for RESULT_GRIB_FILE in ${files_to_copy[@]}; do
             SRC_PATH="${RESULT_GRIB_FILE}"
-            DST_PATH="${SERVER_USER}@${SERVER_ADDRESS}:${SERVER_DATA_DIR}/"
-            printf "%s - Transferring %s ---> %s\n" "$(date +'%d/%m/%Y - %H:%M:%S')" "$(basename ${SRC_PATH})" "${DST_PATH}"
+            info "Transferring $(basename ${SRC_PATH}) ---> ${DST_PATH}"
             for try_ind in {1..10}; do
                 scp -o ServerAliveInterval=30 -o ServerAliveCountMax=5 -q "${SRC_PATH}" "${DST_PATH}"
                 status=$?
@@ -630,47 +712,74 @@ EOF
                 fi
             done
             if (( ${try_ind} == 10 )); then
-                printf "%s - ERROR with transferring %s\n" "$(date +'%d/%m/%Y - %H:%M:%S')" "$(basename ${SRC_PATH})"
+                error "Problem with transferring $(basename ${SRC_PATH}) file"
             fi
         done
-        printf "%s - Transferred %s/%s files\n" "$(date +'%d/%m/%Y - %H:%M:%S')" "${TRANSFERRED_FILES}" "${TOTAL_FILES}"
+        info "Transferred ${TRANSFERRED_FILES}/${TOTAL_FILES} files"
         NOT_TRANSFERRED_FILES=$((${TOTAL_FILES}-${TRANSFERRED_FILES}))
-        if (( ${NOT_TRANSFERRED_FILES} != 0 )); then 
-            printf "%s - Error with transferring %s files\n" "$(date +'%d/%m/%Y - %H:%M:%S')" "$((${TOTAL_FILES}-${TRANSFERRED_FILES}))"
-            if [ ${LAUNCH_SIMULATION} == true ]; then
-                printf "%s - Simulation was not launched due to a possible lack of the non-transferred ECMWF data" "$(date +'%d/%m/%Y - %H:%M:%S')"
-            fi
-            printf "%s - END OF JOB\n" "$(date +'%d/%m/%Y - %H:%M:%S')"
-            exit 1
+    fi
+    if (( ${NOT_TRANSFERRED_FILES} != 0 )); then
+        if [ ${LAUNCH_SIMULATION} == true ]; then
+            error "Error with transferring ${NOT_TRANSFERRED_FILES} files, can't proceed with the simulation"
         else
-            echo "$(date +'%d/%m/%Y - %H:%M:%S') - Data extraction done, data copied to the ${DST_PATH}"
-            DST_PATH="${SERVER_USER}@${SERVER_ADDRESS}:${SERVER_WORKING_DIR}"
-            if [ ${LAUNCH_SIMULATION} == true ]; then
-                cmd="mkdir -p ${SERVER_WORKING_DIR}"
-                ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=5 "${SERVER_USER}@${SERVER_ADDRESS}" ${cmd}
-                scp -o ServerAliveInterval=30 -o ServerAliveCountMax=5 -q "${SIMU_CONFIG_FILEPATH}" "${DST_PATH}/"
-                scp -o ServerAliveInterval=30 -o ServerAliveCountMax=5 -q "${REMOTE_JOB_FILEPATH}" "${DST_PATH}/"
-                cmd="chmod +x ${SERVER_WORKING_DIR}/$(basename ${REMOTE_JOB_FILEPATH})"
-                ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=5 "${SERVER_USER}@${SERVER_ADDRESS}" ${cmd}
-                echo "$(date +'%d/%m/%Y - %H:%M:%S') - Submitting the simulation script ${SERVER_WORKING_DIR}/$(basename ${REMOTE_JOB_FILEPATH}) as a job on ${SERVER_ADDRESS}"
-                cmd="sbatch ${SERVER_WORKING_DIR}/$(basename ${REMOTE_JOB_FILEPATH})"
-                jobID=$(ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=5 "${SERVER_USER}@${SERVER_ADDRESS}" ${cmd})
-                echo "$(date +'%d/%m/%Y - %H:%M:%S') - ${jobID}"
-                jobID="${jobID//[!0-9]/}"
-                while true; do
-                    cmd="ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=5 ${SERVER_USER}@${SERVER_ADDRESS} squeue -u ${SERVER_USER} -j ${jobID} 2>/dev/null"
-                    if ${cmd}; then
-                        echo "$(date +'%d/%m/%Y - %H:%M:%S') - Simulation is running..."
-                        sleep 15  # Adjust the sleep interval as needed
-                    else
-                        echo "$(date +'%d/%m/%Y - %H:%M:%S') - Remote job has finished, check the ${SERVER_WORKING_DIR} on the remote server for the log output to see if the simulation was successful"
-                        printf "%s - END OF JOB\n" "$(date +'%d/%m/%Y - %H:%M:%S')"
-                        exit 0
-                    fi
-                done
-            fi
+            error "Error with transferring ${NOT_TRANSFERRED_FILES} files. Extracted data remains in the ${_tmp_data_dir} directory"
+        fi
+        info "END OF JOB"
+        exit 1
+    else
+        info "All GRIB files were succesfully transferred to the remote server"
+        mv ${_tmp_data_dir}/*.grib ${DATA_DIR}/
+        if [ ${LAUNCH_SIMULATION} == true ]; then
+            error "Proceeding with the BAMED simulation"
         fi
     fi
+}
+
+function launch_simulation_remotely(){
+    if (( ${NOT_TRANSFERRED_FILES} == 0 )) && [ ${LAUNCH_SIMULATION} == true ]; then 
+        DST_PATH="${SERVER_USER}@${SERVER_ADDRESS}:${SERVER_WORKING_DIR}"
+        cmd="mkdir -p ${SERVER_WORKING_DIR}"
+        ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=5 "${SERVER_USER}@${SERVER_ADDRESS}" ${cmd}
+        scp -o ServerAliveInterval=30 -o ServerAliveCountMax=5 -q "${SIMU_CONFIG_FILEPATH}" "${DST_PATH}/"
+        scp -o ServerAliveInterval=30 -o ServerAliveCountMax=5 -q "${REMOTE_JOB_FILEPATH}" "${DST_PATH}/"
+        cmd="chmod +x ${SERVER_WORKING_DIR}/$(basename ${REMOTE_JOB_FILEPATH})"
+        ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=5 "${SERVER_USER}@${SERVER_ADDRESS}" ${cmd}
+        info "Submitting the simulation script ${SERVER_WORKING_DIR}/$(basename ${REMOTE_JOB_FILEPATH}) as a job on ${SERVER_ADDRESS}"
+        cmd="sbatch ${SERVER_WORKING_DIR}/$(basename ${REMOTE_JOB_FILEPATH})"
+        jobID=$(ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=5 "${SERVER_USER}@${SERVER_ADDRESS}" ${cmd})
+        info "${jobID}"
+        jobID="${jobID//[!0-9]/}"
+        while true; do
+            cmd="ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=5 ${SERVER_USER}@${SERVER_ADDRESS} squeue -u ${SERVER_USER} -j ${jobID} -h 2>/dev/null"
+            if ${cmd}; then
+                info "Simulation is running..."
+                sleep 15  # Adjust the sleep interval as needed
+            else
+                info "Remote job has finished, check the ${SERVER_WORKING_DIR} on the remote server for the log output to see if the simulation was successful"
+                info "END OF JOB"
+                exit 0
+            fi
+        done
+    fi
+}
+
+# ====================================================================================================
+
+# +----------------------------------+
+# | Main function                    |
+# +----------------------------------+
+
+function main(){
+    ssh-copy-id -i ~/.ssh/id_rsa.pub ${SERVER_USER}@${SERVER_ADDRESS}
+    NOT_TRANSFERRED_FILES=0
+    prepare_dates
+    prepare_dirs
+    prepare_bamed_simulation_config
+    prepare_remote_job_script
+    extract_ecmwf_data
+    rename_grib_files
+    transfer_files_to_remote_server
+    launch_simulation_remotely
 }
 
 # +----------------------------------+
