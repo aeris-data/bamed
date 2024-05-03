@@ -65,7 +65,7 @@
 ####### END OF HELP
 ####### DO NOT CHANGE ANYTHING BELOW
 
-set -e
+# set -e
 
 SCRIPT_NAME=$(basename "$0")
 
@@ -411,6 +411,7 @@ function write_simu_job_script(){
 module load singularity/3.10.2
 singularity exec --bind ${SERVER_DATA_DIR} ${SINGULARITY_CONTAINER_REMOTE_PATH} python3 ${PYTHON_REMOTE_PATH} -bc ${SERVER_WORKING_DIR}/$(basename ${XML_FILEPATH})
 EOF
+    chmod +x ${JOB_FILEPATH}
     echo ${JOB_FILEPATH}
 }
 
@@ -693,8 +694,23 @@ function transfer_files_to_remote_server(){
         info "END OF JOB"
         exit 0
     else
+        _max_retries=5
+
+        _attempt=1
         cmd="mkdir -p ${SERVER_DATA_DIR}"
-        ssh -o ServerAliveInterval=10 -o ServerAliveCountMax=5 "${SERVER_USER}@${SERVER_ADDRESS}" ${cmd}
+        info "Creating remote directory for the extracted data if it does not exist..."
+        while [ ${_attempt} -le ${max_retries} ]; do
+            ssh -o ServerAliveInterval=10 -o ServerAliveCountMax=5 "${SERVER_USER}@${SERVER_ADDRESS}" ${cmd}
+            if [ $? -eq 0 ]; then
+                info "${SERVER_USER}@${SERVER_ADDRESS}:${SERVER_DATA_DIR} is ready"
+                break  # Break out of the loop if SSH command succeeds
+            else
+                info "SSH connection failed. Retrying..."
+                _attempt=$((_attempt + 1))
+                sleep 60  # Add a delay before retrying
+            fi
+        done
+
         TOTAL_FILES=$(ls ${_tmp_data_dir}/*.grib | wc -l)
         TRANSFERRED_FILES=0
         DST_PATH="${SERVER_USER}@${SERVER_ADDRESS}:${SERVER_DATA_DIR}/"
@@ -703,15 +719,18 @@ function transfer_files_to_remote_server(){
         for RESULT_GRIB_FILE in ${files_to_copy[@]}; do
             SRC_PATH="${RESULT_GRIB_FILE}"
             info "Transferring $(basename ${SRC_PATH}) ---> ${DST_PATH}"
-            for try_ind in {1..10}; do
+            for _attempt in {1..10}; do
                 scp -o ServerAliveInterval=30 -o ServerAliveCountMax=5 -q "${SRC_PATH}" "${DST_PATH}"
                 status=$?
                 if (( ${status} == 0 )); then
                     TRANSFERRED_FILES=$((${TRANSFERRED_FILES}+1))
                     break
+                else
+                    info "SSH connection failed. Retrying..."
+                    sleep 60
                 fi
             done
-            if (( ${try_ind} == 10 )); then
+            if (( ${_attempt} == 10 )); then
                 error "Problem with transferring $(basename ${SRC_PATH}) file"
             fi
         done
@@ -728,37 +747,101 @@ function transfer_files_to_remote_server(){
         exit 1
     else
         info "All GRIB files were succesfully transferred to the remote server"
-        mv ${_tmp_data_dir}/*.grib ${DATA_DIR}/
         if [ ${LAUNCH_SIMULATION} == true ]; then
-            error "Proceeding with the BAMED simulation"
+            info "Proceeding with the BAMED simulation"
         fi
     fi
 }
 
 function launch_simulation_remotely(){
+    _max_retries=5
     if (( ${NOT_TRANSFERRED_FILES} == 0 )) && [ ${LAUNCH_SIMULATION} == true ]; then 
         DST_PATH="${SERVER_USER}@${SERVER_ADDRESS}:${SERVER_WORKING_DIR}"
-        cmd="mkdir -p ${SERVER_WORKING_DIR}"
-        ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=5 "${SERVER_USER}@${SERVER_ADDRESS}" ${cmd}
-        scp -o ServerAliveInterval=30 -o ServerAliveCountMax=5 -q "${SIMU_CONFIG_FILEPATH}" "${DST_PATH}/"
-        scp -o ServerAliveInterval=30 -o ServerAliveCountMax=5 -q "${REMOTE_JOB_FILEPATH}" "${DST_PATH}/"
-        cmd="chmod +x ${SERVER_WORKING_DIR}/$(basename ${REMOTE_JOB_FILEPATH})"
-        ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=5 "${SERVER_USER}@${SERVER_ADDRESS}" ${cmd}
-        info "Submitting the simulation script ${SERVER_WORKING_DIR}/$(basename ${REMOTE_JOB_FILEPATH}) as a job on ${SERVER_ADDRESS}"
-        cmd="sbatch ${SERVER_WORKING_DIR}/$(basename ${REMOTE_JOB_FILEPATH})"
-        jobID=$(ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=5 "${SERVER_USER}@${SERVER_ADDRESS}" ${cmd})
-        info "${jobID}"
-        jobID="${jobID//[!0-9]/}"
-        while true; do
-            cmd="ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=5 ${SERVER_USER}@${SERVER_ADDRESS} squeue -u ${SERVER_USER} -j ${jobID} -h 2>/dev/null"
-            if ${cmd}; then
-                info "Simulation is running..."
-                sleep 15  # Adjust the sleep interval as needed
+
+        info "Creating remote working directory if it does not exist..."
+        _cmd="mkdir -p ${SERVER_WORKING_DIR}"
+        _attempt=1
+        while [ ${_attempt} -le ${_max_retries} ]; do
+            ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=5 "${SERVER_USER}@${SERVER_ADDRESS}" ${_cmd}
+            if [ $? -eq 0 ]; then
+                info "${SERVER_USER}@${SERVER_ADDRESS}:${SERVER_WORKING_DIR} is ready"
+                break  # Break out of the loop if SSH command succeeds
             else
-                info "Remote job has finished, check the ${SERVER_WORKING_DIR} on the remote server for the log output to see if the simulation was successful"
-                info "END OF JOB"
-                exit 0
+                info "SSH connection failed. Retrying..."
+                _attempt=$((_attempt + 1))
+                sleep 60  # Add a delay before retrying
             fi
+        done
+
+        info "Copying BAMED configuration file to the remote server..."
+        _attempt=1
+        while [ ${_attempt} -le ${_max_retries} ]; do
+            scp -o ServerAliveInterval=30 -o ServerAliveCountMax=5 -q "${SIMU_CONFIG_FILEPATH}" "${DST_PATH}/"
+            if [ $? -eq 0 ]; then
+                info "${DST_PATH}/$(basename ${SIMU_CONFIG_FILEPATH}) is ready"
+                break  # Break out of the loop if SSH command succeeds
+            else
+                info "SSH connection failed. Retrying..."
+                _attempt=$((_attempt + 1))
+                sleep 60  # Add a delay before retrying
+            fi
+        done
+
+        info "Copying SLURM job script for simulation to the remote server..."
+        _attempt=1
+        while [ ${_attempt} -le ${_max_retries} ]; do
+            scp -o ServerAliveInterval=30 -o ServerAliveCountMax=5 -q "${REMOTE_JOB_FILEPATH}" "${DST_PATH}/"
+            if [ $? -eq 0 ]; then
+                info "${DST_PATH}/$(basename ${REMOTE_JOB_FILEPATH}) is ready"
+                break  # Break out of the loop if SSH command succeeds
+            else
+                info "SSH connection failed. Retrying..."
+                _attempt=$((_attempt + 1))
+                sleep 60  # Add a delay before retrying
+            fi
+        done
+
+        _attempt=1
+        info "Submitting the simulation script ${SERVER_WORKING_DIR}/$(basename ${REMOTE_JOB_FILEPATH}) as a job on ${SERVER_ADDRESS}"
+        while [ ${_attempt} -le ${_max_retries} ]; do
+            _cmd="sbatch ${SERVER_WORKING_DIR}/$(basename ${REMOTE_JOB_FILEPATH})"
+            jobID=$(ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=5 "${SERVER_USER}@${SERVER_ADDRESS}" ${_cmd})
+            if [ $? -eq 0 ]; then
+                info "${_jobID}"
+                _jobID="${_jobID//[!0-9]/}"
+                break  # Break out of the loop if SSH command succeeds
+            else
+                info "SSH connection failed. Retrying..."
+                _attempt=$((_attempt + 1))
+                sleep 60  # Add a delay before retrying
+            fi
+        done
+
+        while true; do
+            _cmd="ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=5 ${SERVER_USER}@${SERVER_ADDRESS} sacct -p -j ${_jobID} --noheader -X --format JobName,State"
+            _attempt=1
+            while [ ${_attempt} -le ${_max_retries} ]; do
+                _sacct_res=$(${_cmd})
+                if [ $? -eq 0 ]; then
+                    _job_name=$(echo ${_sacct_res} | cut -d'|' -f1)
+                    _job_state=$(echo ${_sacct_res} | cut -d'|' -f2)
+                    if [[ "${_job_state}" == "COMPLETED" ]]; then
+                        info "Remote job has been completed, check the ${REMOTE_WORKING_DIR} on the remote server for simulation results"
+                        exit 0
+                    elif [[ "${_job_state}" == "RUNNING" ]]; then
+                        info "Simulation is still running..."
+                        sleep 180
+                    elif [[ "${_job_state}" == "FAILED" ]]; then
+                        error "Remote job has failed, check the ${REMOTE_WORKING_DIR}/girafe-simulation.out on the remote server for more information"
+                        exit 1
+                    fi
+                    break  # Break out of the loop if SSH command succeeds
+                else
+                    info "SSH connection failed. Retrying..."
+                    attempt=$((attempt + 1))
+                    sleep 60  # Add a delay before retrying
+                fi
+            done
         done
     fi
 }
