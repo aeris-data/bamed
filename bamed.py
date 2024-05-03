@@ -79,7 +79,7 @@ class bamed_simulation:
         # Launch date and time configuration
         for launch_i in xml_root.findall("bamed/launch/launch_datetime"):
             dates = launch_i.find("date").text.split("/")
-            time = launch_i.find("time").text.split("/")
+            time = [datetime.datetime.strftime(datetime.datetime.strptime(elem, "%H"), "%H%M") for elem in launch_i.find("time").text.split("/")]
             for date in dates:
                 self.launch_start_datetime[date] = time
         sites = xml_root.findall("bamed/launch/launch_site/site")
@@ -143,7 +143,10 @@ class bamed_simulation:
         """
         self.work_dir = os.path.abspath(self.work_dir)
         if not os.path.exists(self.work_dir):
-            os.mkdir(self.work_dir)
+            LOGGER.error(f"Working directory ${self.work_dir} does not exist")
+            return 1
+        else:
+            return 0
     
     def verify(self):
         """
@@ -659,19 +662,21 @@ if __name__=="__main__":
     args = parser.parse_args()
     config_xmlpath = args.config
 
+    global LOGGER, LOG_FILEPATH
+    LOGGER = start_log()
+    print_header_in_terminal()
+
     simulation_obj = bamed_simulation(config_xmlpath)
 
-    simulation_obj.verify_workdir()
+    status = simulation_obj.verify_workdir()
+    if status!=0:
+        sys.exit(1)
 
     # global LOGGER, LOG_FILEPATH
     # LOG_FILEPATH = simulation_obj.work_dir+"/bamed-simulation.log"
     # LOGGER = start_log(LOG_FILEPATH, args.shell_log)
     # if args.shell_log==True:
     #     print_header_in_terminal()
-    
-    global LOGGER, LOG_FILEPATH
-    LOGGER = start_log()
-    print_header_in_terminal()
 
     status = simulation_obj.verify()
     if status!=0:
@@ -691,6 +696,8 @@ if __name__=="__main__":
         # For each launch time of the current launch date
         for time in simulation_obj.launch_start_datetime[date]:
             simulation_config.launch_date = date
+            if len(time)==2:
+                simulation_config.launch_time = time+"0000"
             if len(time)==4:
                 simulation_config.launch_time = time+"00"
             if len(time)==6:
