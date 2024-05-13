@@ -486,10 +486,17 @@ function prepare_bamed_simulation_config(){
         FC_N_DAYS=""
     fi
     if [[ ${DATA_TYPE} == "an+fc" ]]; then
+        # TODAY_DATE=$(date +'%Y%m%d')
+        # END_AN_DATE=$(date -d "${TODAY_DATE} - 1 day" "+%Y%m%d")
+        # AN_N_DAYS=$(( ($(date -d ${TODAY_DATE} +%s) - $(date -d ${DATA_START_DATE} +%s)) / 86400 ))
+        # FC_N_DAYS=$(( ($(date -d ${DATA_END_DATE} +%s) - $(date -d ${TODAY_DATE} +%s) + 86400) / 86400 ))
+        # FC_HOURS=$((${FC_N_DAYS}*24))
+        # SIMU_CONFIG_FILEPATH=$(write_simulaiton_config_file 3)
         TODAY_DATE=$(date +'%Y%m%d')
-        END_AN_DATE=$(date -d "${TODAY_DATE} - 1 day" "+%Y%m%d")
-        AN_N_DAYS=$(( ($(date -d ${TODAY_DATE} +%s) - $(date -d ${DATA_START_DATE} +%s)) / 86400 ))
-        FC_N_DAYS=$(( ($(date -d ${DATA_END_DATE} +%s) - $(date -d ${TODAY_DATE} +%s) + 86400) / 86400 ))
+        END_AN_DATE=$(date -d "${TODAY_DATE} - 2 days" "+%Y%m%d")
+        START_FC_DATE=$(date -d "${TODAY_DATE} - 1 day" "+%Y%m%d")
+        AN_N_DAYS=$(( ($(date -d ${END_AN_DATE} +%s) - $(date -d ${DATA_START_DATE} +%s)) / 86400 ))
+        FC_N_DAYS=$(( ($(date -d ${DATA_END_DATE} +%s) - $(date -d ${START_FC_DATE} +%s) + 86400) / 86400 ))
         FC_HOURS=$((${FC_N_DAYS}*24))
         SIMU_CONFIG_FILEPATH=$(write_simulaiton_config_file 3)
     fi
@@ -658,6 +665,29 @@ retrieve,
     levtype=SFC,
     param=228,
     target="${_tmp_data_dir}/[date]_[time]_[step].grib"
+retrieve,
+    class=OD,
+    expver=1,
+    stream=OPER,
+    type=FC,
+    levtype=ML,
+    packing=simple,
+    levelist=90/to/137/by/1,
+    grid=${GRID_RES}/${GRID_RES},
+    area=${AREA},
+    date=${START_FC_DATE},
+    time=00,
+    step=0/to/21/by/3,
+    param=130/131/132/133/135,
+    target="${_tmp_data_dir}/[date]_[time]_[step].grib"
+retrieve,
+    levelist=1,
+    param=152,
+    target="${_tmp_data_dir}/[date]_[time]_[step].grib"
+retrieve,
+    levtype=SFC,
+    param=228,
+    target="${_tmp_data_dir}/[date]_[time]_[step].grib"
 EOF
     fi
 
@@ -805,7 +835,7 @@ function launch_simulation_remotely(){
         info "Submitting the simulation script ${SERVER_WORKING_DIR}/$(basename ${REMOTE_JOB_FILEPATH}) as a job on ${SERVER_ADDRESS}"
         while [ ${_attempt} -le ${_max_retries} ]; do
             _cmd="sbatch ${SERVER_WORKING_DIR}/$(basename ${REMOTE_JOB_FILEPATH})"
-            jobID=$(ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=5 "${SERVER_USER}@${SERVER_ADDRESS}" ${_cmd})
+            _jobID=$(ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=5 "${SERVER_USER}@${SERVER_ADDRESS}" ${_cmd})
             if [ $? -eq 0 ]; then
                 info "${_jobID}"
                 _jobID="${_jobID//[!0-9]/}"
