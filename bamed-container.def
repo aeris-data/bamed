@@ -15,7 +15,7 @@ From: ubuntu:20.04
     mkdir -p /usr/local/src
 
     # Instal Python libraries
-    pip3 install numpy netCDF4 matplotlib shapely pyshp pyproj cartopy lxml pygrib
+    pip3 install numpy netCDF4 matplotlib shapely pyshp pyproj cartopy lxml pygrib xarray
 
     # Instal eccodes library for the GRIB manipulations
     VERSION="2.31.0"
