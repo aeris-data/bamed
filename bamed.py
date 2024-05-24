@@ -26,7 +26,6 @@ import cartopy.feature as cf
 import pygrib
 import sys
 import netCDF4 as nc
-import xarray as xr
 
 BAMED_EXE     = "/usr/local/bamed/src/traj_blpb"
 BALOON_COLORS = ["#332288", "#AA4499", "#88CCEE", "#AA4499", "#44AA99", "#882255""#117733", "#CC6677", "#999933", "#DDCC77", "#AA4499"]
@@ -300,12 +299,13 @@ class bamed_simulation:
                     else:
                         LOGGER.warning("No simulation results were found for this launch datetime!")
 
-    def write_output_in_kml(self, list_of_out_files):
+    def write_output_in_kml(self):
         """
         Transcript the simulation ASCII output to the KML format.
         The user have then the output in the ASCII and the KML format.
         """
-        for dat_file in list_of_out_files:
+        out_files = glob.glob(f"{self.work_dir}/**/blpb*.dat", recursive=True)
+        for dat_file in out_files:
             with open(dat_file,"r") as file:
                 data = file.readlines()
             time_secs = [float(line.split(";")[1]) for line in data[7:-1]]
@@ -331,94 +331,107 @@ class bamed_simulation:
                 file.write("</Document>\n")
                 file.write("</kml>\n")
     
-    def write_output_in_netcdf(self, list_of_out_files):
+    def write_output_in_netcdf(self):
         """
         Transcript the simulation ASCII output to the netCDF format.
         """
-        LOGGER.info(f"Processing {len(list_of_out_files)} .dat files, empty files won't be appended to the netCDF")
-        ds = xr.Dataset()
-        for dat_file in list_of_out_files:
+        out_files = glob.glob(f"{self.work_dir}/**/blpb*.dat", recursive=True)
+        for dat_file in out_files:
             with open(dat_file,"r") as file:
                 data = file.readlines()
-            if len(data)<=7:
-                LOGGER.warning(f"{os.path.basename(dat_file)} is empty, can't append it to the netCDF")
-                continue
-            time_secs   = [0] + [float(line.split(";")[1]) for line in data[7:-1]] 
-            lon         = [float(line.split(";")[2]) for line in data[7:-1]]
-            lat         = [float(line.split(";")[3]) for line in data[7:-1]]
-            alt         = [0] + [float(line.split(";")[4]) for line in data[7:-1]]
-            w           = [0] + [float(line.split(";")[5]) for line in data[7:-1]]
-            tp          = [0] + [float(line.split(";")[6]) for line in data[7:-1]]
-            YYYYMMDD    = os.path.basename(dat_file).split("_")[1]
-            HHMMSS      = os.path.basename(dat_file).split("_")[2]
-            launch_lat  = float(data[0].split(";")[1].strip())
-            launch_lon  = float(data[1].split(";")[1].strip())
-            density     = float(data[4].split(";")[1].strip())
-            lon         = [launch_lon] + lon
-            lat         = [launch_lat] + lat
-            time_obj    = [datetime.datetime.strptime(f"{YYYYMMDD}-{HHMMSS}", "%Y%m%d-%H%M%S") + datetime.timedelta(seconds=value) for value in time_secs]
-            time_secs   = [(elem-datetime.datetime.strptime(f"19700101-000000", "%Y%m%d-%H%M%S")).seconds for elem in time_obj]
-            tmp = xr.Dataset(
-                data_vars=dict(time=(["launch_time", "density", "points"],np.array(time_secs)[np.newaxis,np.newaxis,:]),
-                            lat=(["launch_time", "density", "points"],np.array(lat)[np.newaxis,np.newaxis,:]),
-                            lon=(["launch_time", "density", "points"],np.array(lon)[np.newaxis,np.newaxis,:]),
-                            alt=(["launch_time", "density", "points"],np.array(alt)[np.newaxis,np.newaxis,:]),
-                            w=(["launch_time", "density", "points"],np.array(alt)[np.newaxis,np.newaxis,:]),
-                            tp=(["launch_time", "density", "points"],np.array(alt)[np.newaxis,np.newaxis,:]),
-                            launch_lat=launch_lat,
-                            launch_lon=launch_lon),
-                coords=dict(density=(["density"],np.array([density])),
-                            points=(["points"],np.arange(len(time_secs))),
-                            launch_time=(["launch_time"], np.array([int(YYYYMMDD+HHMMSS)]))))
-            ds = ds.combine_first(tmp)
-        
-            ds.attrs["conventions"]              = "CF-1.0"
-            ds.attrs["netcdf_version_id"]        = nc.__netcdf4libversion__
-            ds.attrs["standard_name_vocabulary"] = "NetCDF Standard"
-            ds.attrs["title"]                    = "BAMED estimated baloon trajectory"
-            ds.attrs["summary"]                  = "This file contains baloon estimated trajectories computed by the tool BAMED"
-            ds.attrs["institution"]              = "OMP / Magellium"
-            if self.lon_min>=180.0 or self.lon_max>=180.0:
-                ds.attrs["westernmost_longitude"]    = 0
-                ds.attrs["easternmost_longitude"]    = 360
-            else:
-                ds.attrs["westernmost_longitude"]    = -180
-                ds.attrs["easternmost_longitude"]    = 180
-            ds.attrs["southernmost_latitude"]    = -90
-            ds.attrs["northernmost_latitude"]    = 90
-            ds.attrs["site_name"]                = os.path.basename(os.path.dirname(dat_file))
-            ds.attrs["creation_time"]            = str(datetime.datetime.now()).split(".")[0]
-            ds.attrs["modification_time"]        = str(datetime.datetime.now()).split(".")[0]
-            ds.launch_lat.attrs["units"]         = 'degrees_north'
-            ds.launch_lat.attrs["standard_name"] = 'latitude'
-            ds.launch_lat.attrs["long_name"]     = 'Latitude of the baloon launch'
-            ds.launch_lon.attrs["units"]         = 'degrees_east'
-            ds.launch_lon.attrs["standard_name"] = 'longitude'
-            ds.launch_lon.attrs["long_name"]     = 'Longitude of the baloon launch'
-            ds.density.attrs["units"]            = '-'
-            ds.density.attrs["standard_name"]    = 'density'
-            ds.density.attrs["long_name"]        = 'Density of the baloon'
-            ds.lat.attrs["units"]                = 'degrees_north'
-            ds.lat.attrs["standard_name"]        = 'latitude'
-            ds.lat.attrs["long_name"]            = 'Latitude of the baloon position'
-            ds.lon.attrs["units"]                = 'degrees_east'
-            ds.lon.attrs["standard_name"]        = 'longitude'
-            ds.lon.attrs["long_name"]            = 'Longitude of the baloon position'
-            ds.alt.attrs["units"]                = 'meters'
-            ds.alt.attrs["standard_name"]        = 'altitude'
-            ds.alt.attrs["long_name"]            = 'Altitude of the baloon position'
-            ds.w.attrs["units"]                  = 'Pa/s'
-            ds.w.attrs["standard_name"]          = 'vertical_velocity'
-            ds.w.attrs["long_name"]              = 'Vertical velocity at simulation timestamps'
-            ds.tp.attrs["units"]                 = 'meters'
-            ds.tp.attrs["standard_name"]         = 'total_precipitation'
-            ds.tp.attrs["long_name"]             = 'Total precipitations at simulation timestamps'
-            ds.time.attrs["units"]               = "seconds since 1970-01-01 00:00:00"
-            ds.time.attrs["standard_name"]       = 'time'
-            ds.time.attrs["long_name"]           = 'Time stamp of the baloon position'
-            ds.time.attrs["calendar"]            = "standard"
-        res_dir = os.path.dirname(list_of_out_files[0])
-        ds.to_netcdf(f"{res_dir}/baloons.nc")
+            time_secs = [float(line.split(";")[1]) for line in data[7:-1]] 
+            lon       = [float(line.split(";")[2]) for line in data[7:-1]]
+            lat       = [float(line.split(";")[3]) for line in data[7:-1]]
+            alt       = [float(line.split(";")[4]) for line in data[7:-1]]
+            w         = [float(line.split(";")[5]) for line in data[7:-1]]
+            tp        = [float(line.split(";")[6]) for line in data[7:-1]]
+            start_datetime = datetime.datetime.strptime("T".join(os.path.basename(dat_file).split("_")[1:3]),"%Y%m%dT%H%M%S")
+            with nc.Dataset(f"{dat_file[:-4]}.nc",mode="w",format='NETCDF4') as ncfile:
+                ncfile.conventions              = "CF-1.0"
+                ncfile.netcdf_version_id        = nc.__netcdf4libversion__
+                ncfile.standard_name_vocabulary = "NetCDF Standard"
+                ncfile.title                    = "BAMED estimated baloon trajectory"
+                ncfile.summary                  = "This file contains baloon estimated trajectories computed by the tool BAMED"
+                ncfile.institution              = "OMP / Magellium"
+                if self.lon_min>=180.0 or self.lon_max>=180.0:
+                    ncfile.westernmost_longitude    = 0
+                    ncfile.easternmost_longitude    = 360
+                else:
+                    ncfile.westernmost_longitude    = -180
+                    ncfile.easternmost_longitude    = 180
+                ncfile.southernmost_latitude    = -90
+                ncfile.northernmost_latitude    = 90
+
+                YYYMMDD = os.path.basename(dat_file).split("_")[1]
+                HHMMSS  = os.path.basename(dat_file).split("_")[2]
+                ncfile.site_name = os.path.basename(os.path.dirname(dat_file))
+                ncfile.launch_lat  = data[0].split(";")[1].strip()
+                ncfile.launch_lon  = data[1].split(";")[1].strip()
+                ncfile.launch_date = f"{YYYMMDD[:4]}-{YYYMMDD[4:6]}-{YYYMMDD[6:8]}"
+                ncfile.launch_time = f"{HHMMSS[:2]}:{HHMMSS[2:4]}:{HHMMSS[4:6]}"
+
+                ncfile.creation_time            = str(datetime.datetime.now()).split(".")[0]
+                ncfile.modification_time        = str(datetime.datetime.now()).split(".")[0]
+                # ncfile.createDimension("lat",len(lon)+1)
+                # ncfile.createDimension("lon",len(lon)+1)
+                ncfile.createDimension("time",len(lon)+1)
+                # ------------------------------------------
+                var = ncfile.createVariable("launch_lat", np.float32)
+                var.units = 'degrees_north'
+                var.standard_name = 'latitude'
+                var.long_name = 'Latitude of the baloon launch'
+                var[:] = float(data[0].split(";")[1].strip())
+                # ------------------------------------------
+                var = ncfile.createVariable("launch_lon", np.float32)
+                var.units = 'degrees_east'
+                var.standard_name = 'longitude'
+                var.long_name = 'Longitude of the baloon launch'
+                var[:] = float(data[1].split(";")[1].strip())
+                # ------------------------------------------
+                var = ncfile.createVariable("density", np.float32)
+                var.units = '-'
+                var.standard_name = 'density'
+                var.long_name = 'Density of the baloon'
+                var[:] = float(data[4].split(";")[1].strip())
+                # ------------------------------------------
+                var = ncfile.createVariable("lat", np.float32, ("time",))
+                var.units = 'degrees_north'
+                var.standard_name = 'latitude'
+                var.long_name = 'Latitude of the baloon position'
+                var[:] = [float(data[0].split(";")[1].strip())] + lat
+                # ------------------------------------------
+                var = ncfile.createVariable("lon", np.float32, ("time",))
+                var.units = 'degrees_east'
+                var.standard_name = 'longitude'
+                var.long_name = 'Longitude of the baloon position'
+                var[:] = [float(data[1].split(";")[1].strip())] + lon
+                # ------------------------------------------
+                var = ncfile.createVariable("alt", np.float32, ("time",))
+                var.units = 'meters'
+                var.standard_name = 'altitude'
+                var.long_name = 'Altitude of the baloon position'
+                var[:] = [0] + alt
+                # ------------------------------------------
+                var = ncfile.createVariable("w", np.float32, ("time",))
+                var.units = 'Pa/s'
+                var.standard_name = 'vertical_velocity'
+                var.long_name = 'Vertical velocity at simulation timestamps'
+                var[:] = [0] + w
+                # ------------------------------------------
+                var = ncfile.createVariable("tp", np.float32, ("time",))
+                var.units = 'meters'
+                var.standard_name = 'total_precipitation'
+                var.long_name = 'Total precipitations at simulation timestamps'
+                var[:] = [0] + tp
+                # ------------------------------------------
+                YYYMMDD = os.path.basename(dat_file).split("_")[1]
+                HHMMSS  = os.path.basename(dat_file).split("_")[2]
+                var = ncfile.createVariable("time", np.float32, ("time",))
+                var.units = 'seconds since ' + f"{YYYMMDD[:4]}-{YYYMMDD[4:6]}-{YYYMMDD[6:8]}" + " " + f"{HHMMSS[:2]}:{HHMMSS[2:4]}:{HHMMSS[4:6]}"
+                var.standard_name = 'time'
+                var.long_name = 'Time stamp of the baloon position'
+                var.calendar = "standard"
+                var[:] = [0] + time_secs
 
 # ###############################################################################
 # #           Configuration object for the .dat configuration file              #
@@ -542,6 +555,33 @@ def write_header_in_file(filepath: str) -> None:
         file.write("║ ~~~~~~~~~~~~                                   ║\n")
         file.write("╚════════════════════════════════════════════════╝\n")
 
+
+# def start_log(log_filepath: str, shell_option: bool=False) -> logging.Logger:
+#     """
+#     Create and initiates a Python logger object for an easy handling of the
+#     log information and printing
+
+#     Args:
+#         log_filepath (str): filepath to the log file, handled by the main function.
+
+#         shell_option (bool, optional): if True, displays all the log information in the shell
+#                                        in addition to the txt file. Defaults to False.
+
+#     Returns:
+#         logging.Logger: logger object
+#     """
+#     log_handlers = []
+#     if shell_option==True:
+#         log_handlers.append(logging.StreamHandler())
+#     log_handlers.append(logging.FileHandler(log_filepath))
+#     write_header_in_file(log_filepath)
+#     logging.basicConfig(format="%(asctime)s   [%(levelname)s]   %(message)s",
+#                         datefmt="%d/%m/%Y %H:%M:%S",
+#                         handlers=log_handlers)
+#     logger = logging.getLogger('my_log')
+#     logger.setLevel(logging.DEBUG)
+#     return logger
+
 def start_log() -> logging.Logger:
     """
     Create and initiates a Python logger object for an easy handling of the
@@ -649,7 +689,6 @@ if __name__=="__main__":
     simulation_config = file_config()
     simulation_config.update(simulation_obj)
 
-    output_files = []
     # ------------------------------------------
     # For each launch date
     for date in simulation_obj.launch_start_datetime.keys():
@@ -688,23 +727,22 @@ if __name__=="__main__":
                     simulation_config.write_config_file(res_dir)
                     # ------------------------------------------
                     # Run simulation
-                    # ret_code = run_bash_command(BAMED_EXE, res_dir)
-                    output_files.append(glob.glob(f"{res_dir}/blpb_{date}_{time}00_{'{0:0.2f}'.format(density_val)}_*.dat")[0])
+                    ret_code = run_bash_command(BAMED_EXE, res_dir)
     
     LOGGER.info("+-------------------------------------------------------------------------+")
     LOGGER.info("|  Plotting results...                                                    |")
     LOGGER.info("+-------------------------------------------------------------------------+")
-    # simulation_obj.plot_results()
+    simulation_obj.plot_results()
     
     LOGGER.info("+-------------------------------------------------------------------------+")
     LOGGER.info("|  Adding results in KML format...                                        |")
     LOGGER.info("+-------------------------------------------------------------------------+")
-    # simulation_obj.write_output_in_kml(output_files)
+    simulation_obj.write_output_in_kml()
 
     LOGGER.info("+-------------------------------------------------------------------------+")
     LOGGER.info("|  Adding results in netCDF format...                                     |")
     LOGGER.info("+-------------------------------------------------------------------------+")
-    simulation_obj.write_output_in_netcdf(output_files)
+    simulation_obj.write_output_in_netcdf()
 
     LOGGER.info("+-------------------------------------------------------------------------+")
     LOGGER.info("|  SIMULATION DONE !                                                      |")
